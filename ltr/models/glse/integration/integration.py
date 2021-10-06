@@ -2,20 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ltr.external.PreciseRoIPooling.pytorch.prroi_pool import PrRoIPool2D
-from ltr.admin.utils import Visualizer
 
-from ltr.models.glse.integration.saliency_psr import SaliencyEvaluator_PSR
-from ltr.models.glse.integration.saliency_psrw_gai import SaliencyEvaluator_PSRW
-from ltr.models.glse.integration.fusiongcn_pro_select import FusionGCN_SSA
-from ltr.models.glse.integration.fusiongcn_pro import FusionGCN
+from ltr.models.glse.integration.saliency_psrw import SaliencyEvaluator_PSRW
+from ltr.models.glse.integration.fusiongcn import FusionGCN_SSA
 import numpy as np
 
 import math
 import numpy as np
 
-__visualize__ = False
-visualizer = Visualizer()
-visual_root_path = '/home/zikun/work/tracking/KPT/glse_visual/'
 
 class FGXCorr(nn.Module):
     """
@@ -90,14 +84,10 @@ class Integration(nn.Module):
         else:
             self.saliency_scale_factor = integrate_opt.saliency_scale_factor
 
-        if integrate_opt.use_psr:# pre-defined mainlobe
-            self.saliencyeval = SaliencyEvaluator_PSR(mainlobe_window_radius=integrate_opt.mainlobe_window_radius,
-                                                      detach_saliency=integrate_opt.detach_saliency, use_std_dev=integrate_opt.use_std_dev)
-        elif integrate_opt.use_psrw:
-            self.saliencyeval = SaliencyEvaluator_PSRW(mainlobe_window_radius_priori=integrate_opt.mainlobe_window_radius_priori,
-                                                       mainlobe_window_radius_max=integrate_opt.mainlobe_window_radius_max,
-                                                       min_k=integrate_opt.min_k, ml_width_pow=integrate_opt.ml_width_pow,
-                                                       detach_saliency=integrate_opt.detach_saliency, use_std_dev=integrate_opt.use_std_dev)
+        self.saliencyeval = SaliencyEvaluator_PSRW(mainlobe_window_radius_priori=integrate_opt.mainlobe_window_radius_priori,
+                                                   mainlobe_window_radius_max=integrate_opt.mainlobe_window_radius_max,
+                                                   min_k=integrate_opt.min_k, ml_width_pow=integrate_opt.ml_width_pow,
+                                                   detach_saliency=integrate_opt.detach_saliency, use_std_dev=integrate_opt.use_std_dev)
 
         self.xcorr = FGXCorr(template_area)
 
@@ -134,8 +124,6 @@ class Integration(nn.Module):
         processed_xcorr_map = self.process_xcorr(xcorr_map, normed_saliency, peak_coords)
         modulated_search = self.fusiongcn(search, processed_xcorr_map, normed_saliency, peak_coords, graph_size)
 
-        if __visualize__:
-            return modulated_search, xcorr_map, processed_xcorr_map
         return modulated_search
 
     def find2Dpeak(self, xcorr_map):

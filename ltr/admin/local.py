@@ -3,8 +3,8 @@ class EnvironmentSettings:
     def __init__(self):
         self.workspace_dir = '/home/zikun/work/tracking/KPTracking/New_KPT/new_pytracking'  # Base directory for saving network checkpoints.
         self.tensorboard_dir = self.workspace_dir + '/tensorboard/'    # Directory for tensorboard files.
-        self.lasot_dir = '/home/zikun/repository/data/raw_data/LaSOT/lasot_dataset/train'
-        self.got10k_dir = '/home/zikun/repository/data/raw_data/got10k/train'
+        self.lasot_dir = '/home/zikun/repository/data/raw_data/LaSOT_split/lasot_dataset/train'
+        self.got10k_dir = '/home/zikun/repository/data/raw_data/Got10K/train'
         self.trackingnet_dir = '/home/zikun/repository1/Tracking_Net'
         self.coco_dir = '/home/zikun/repository/data/raw_data/COCO'
         self.lvis_dir = ''

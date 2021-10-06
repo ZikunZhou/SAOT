@@ -86,9 +86,9 @@ def main(checkpoint_num, run_id):
                 pass
             else:
                 video_path = '{}_{:03d}'.format(video_path, run_id)
-            if os.path.exists(video_path):
-                print(video_path, 'exists!')
-                continue
+            #if os.path.exists(video_path):
+            #    print(video_path, 'exists!')
+            #    continue
             frame_counter = 0
             lost_number = 0
             toc = 0
@@ -177,9 +177,9 @@ def main(checkpoint_num, run_id):
             if not os.path.isdir(model_path):
                 os.makedirs(model_path)
             result_path = os.path.join(model_path, '{}.txt'.format(video.name))
-            if os.path.exists(result_path):
-                print(result_path, 'exists!')
-                continue
+            #if os.path.exists(result_path):
+            #    print(result_path, 'exists!')
+            #    continue
             toc = 0
             pred_bboxes = []
             scores = []
@@ -187,8 +187,6 @@ def main(checkpoint_num, run_id):
             for idx, (img, gt_bbox) in enumerate(video):
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                 tic = cv2.getTickCount()
-                if idx > 5:
-                    break
                 if idx == 0:
                     cx, cy, w, h = get_axis_aligned_bbox(np.array(gt_bbox))
                     gt_bbox_ = [cx-(w-1)/2, cy-(h-1)/2, float(w), float(h)]
