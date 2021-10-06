@@ -1,0 +1,20 @@
+# annotation python Compiled (.pyc)
+*.pyc
+# annotation log (.log)
+*.log
+# annotation model file (.pth.tar)
+*.pth.tar
+# annotation IMAGE file (.jpg)
+*.jpg
+*.pth
+*.txt
+*.pdf
+*.tex
+*.pkl
+*.pyc
+
+debug/
+tensorboard/
+checkpoints/
+final_result/
+pytracking/tracking_results/
