@@ -1,8 +1,8 @@
-# used for testing on got10k dataset
+# parameters used for testing OTB2015, NFS30
 from pytracking.utils import TrackerParams
 from pytracking.features.net_wrappers import NetWithBackbone
 
-def parameters(checkpoint_path: str = None, checkpoint_num: int = None):
+def parameters():
     params = TrackerParams()
 
     params.debug = 0
@@ -58,11 +58,7 @@ def parameters(checkpoint_path: str = None, checkpoint_num: int = None):
     params.box_refinement_step_length = 1
     params.box_refinement_step_decay = 1
 
-    assert(checkpoint_path is not None and checkpoint_num is not None), 'To test glse tracker, ckpt_path and ckpt_num must be given!'
-
-    net_name = '{:s}/DiMPnet_ep{:04d}.pth.tar'.format(checkpoint_path, checkpoint_num)
-
-    params.net = NetWithBackbone(net_path=net_name,
+    params.net = NetWithBackbone(net_path='SAOT.pth',
                                  use_gpu=params.use_gpu)
 
     params.vot_anno_conversion_type = 'preserve_area'
@@ -73,6 +69,8 @@ def parameters(checkpoint_path: str = None, checkpoint_num: int = None):
     params.search_area_scale = 6
     params.fuse_online_offline = True
     params.fuse_online_weight = 0.8
-    params.perform_post_process = False
-
+    params.perform_post_process = True
+    params.WINDOW_INFLUENCE = 0.6394239201925985
+    params.PENALTY_K = 0.12418040866085275
+    params.LR = 0.7830185033454389
     return params

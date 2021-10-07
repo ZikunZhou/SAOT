@@ -37,9 +37,6 @@ import logging
 
 
 def eval(dataset, tracker_name):
-    # root = os.path.realpath(os.path.join(os.path.dirname(__file__),
-    #                                      '../testing_dataset'))
-    # root = os.path.join(root, dataset)
     tracker_dir = "./"
     trackers = [tracker_name]
     if 'OTB' in args.dataset:
@@ -274,7 +271,7 @@ if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
 
     cur_dir = os.path.dirname(os.path.realpath(__file__))
-    dataset_root = os.path.join(cur_dir, '/home/zikun/repository/data/siamrpn_test_data/testing_dataset', args.dataset)
+    dataset_root = os.path.join(cur_dir, 'path of your testing dataset', args.dataset)
 
     # create dataset
     dataset = DatasetFactory.create_dataset(name=args.dataset,
@@ -283,7 +280,7 @@ if __name__ == "__main__":
 
     # Eval dataset
     root = os.path.realpath(os.path.join(os.path.dirname(__file__),
-                        '/home/zikun/repository/data/siamrpn_test_data/testing_dataset'))
+                        'path of your testing dataset'))
     root = os.path.join(root, args.dataset)
     if 'OTB' in args.dataset:
         dataset_eval = OTBDataset(args.dataset, root)

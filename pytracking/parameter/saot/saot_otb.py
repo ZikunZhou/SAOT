@@ -1,7 +1,8 @@
+# parameters used for testing OTB2015, NFS30
 from pytracking.utils import TrackerParams
 from pytracking.features.net_wrappers import NetWithBackbone
 
-def parameters(checkpoint_path: str = None, checkpoint_num: int = None):
+def parameters():
     params = TrackerParams()
 
     params.debug = 0
@@ -10,41 +11,38 @@ def parameters(checkpoint_path: str = None, checkpoint_num: int = None):
     params.use_gpu = True
 
     # Learning parameters
-    params.sample_memory_size = 100
-    params.learning_rate = 0.0075
-    params.init_samples_minimum_weight = 0.0
-    params.train_skipping = 10
+    params.sample_memory_size = 50
+    params.learning_rate = 0.01
+    params.init_samples_minimum_weight = 0.25
+    params.train_skipping = 20
 
     # Net optimization params
     params.update_classifier = True
-    params.net_opt_iter = 15
+    params.net_opt_iter = 10
     params.net_opt_update_iter = 2
-    params.net_opt_hn_iter = 2
+    params.net_opt_hn_iter = 1
 
     # Detection parameters
-    params.window_output = True
+    params.window_output = False
 
     # Init augmentation parameters
     params.use_augmentation = True
     params.augmentation = {'fliplr': True,
-                           'rotate': [-5, 10, -30, 60],
-                           'blur': [(2, 0.2), (1, 3)],
-                           'relativeshift': [(0.6, 0.6), (-0.6, -0.6)],
-                           'dropout': (3, 0.2)}
+                           'rotate': [10, -10, 45, -45],
+                           'blur': [(3,1), (1, 3), (2, 2)],
+                           'relativeshift': [(0.6, 0.6), (-0.6, 0.6), (0.6, -0.6), (-0.6,-0.6)],
+                           'dropout': (2, 0.2)}
 
-    params.augmentation_expansion_factor = 1.4
+    params.augmentation_expansion_factor = 2
     params.random_shift_factor = 1/3
 
     # Advanced localization parameters
     params.advanced_localization = True
-    params.target_not_found_threshold = 0.0
-    params.distractor_threshold = 100
-    params.hard_negative_threshold = 0.45
+    params.target_not_found_threshold = 0.25
+    params.distractor_threshold = 0.8
+    params.hard_negative_threshold = 0.5
     params.target_neighborhood_scale = 2.2
-    params.dispalcement_scale = 0.7
-
-    params.perform_hn_without_windowing = True
-
+    params.dispalcement_scale = 0.8
     params.hard_negative_learning_rate = 0.02
     params.update_scale_when_uncertain = True
 
@@ -56,25 +54,24 @@ def parameters(checkpoint_path: str = None, checkpoint_num: int = None):
     params.box_jitter_pos = 0.1
     params.box_jitter_sz = 0.5
     params.maximal_aspect_ratio = 6
-    params.box_refinement_iter = 3
+    params.box_refinement_iter = 5
     params.box_refinement_step_length = 1
     params.box_refinement_step_decay = 1
 
-    assert(checkpoint_path is not None and checkpoint_num is not None), 'To test glse tracker, ckpt_path and ckpt_num must be given!'
-
-    net_name = '{:s}/DiMPnet_ep{:04d}.pth.tar'.format(checkpoint_path, checkpoint_num)
-
-    params.net = NetWithBackbone(net_path=net_name,
+    params.net = NetWithBackbone(net_path='SAOT.pth',
                                  use_gpu=params.use_gpu)
 
     params.vot_anno_conversion_type = 'preserve_area'
 
-    params.subsearch_feat_sz = 16
+    params.subsearch_feat_sz = 18
     params.regnet_stride = 8
-    params.image_sample_size = 16 * 16
-    params.search_area_scale = 4.5
+    params.image_sample_size = 22*16
+    params.search_area_scale = 6
     params.fuse_online_offline = True
     params.fuse_online_weight = 0.8
     params.perform_post_process = True
+    params.WINDOW_INFLUENCE = 0.15023374544821316
+    params.PENALTY_K = 0.4670975808285926
+    params.LR = 0.7515981966269943
 
     return params

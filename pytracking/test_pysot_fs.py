@@ -34,29 +34,23 @@ parser.add_argument('--debug', type=int, default=0, help='Debug level.')
 parser.add_argument('--use_visdom', type=bool, default=True, help='Flag to enable visdom')
 parser.add_argument('--visdom_server', type=str, default='127.0.0.1', help='Server for visdom')
 parser.add_argument('--visdom_port', type=int, default=8097, help='Port for visdom')
-parser.add_argument('--checkpoint_path', type=str, default='dimp_debug', help='Path for checkpoint files.')
-parser.add_argument('--checkpoint_num', type=int, default=None, help='checkpoint number')
 parser.add_argument('--dataset', type=str, help='datasets')
 parser.add_argument('--video', default='', type=str, help='eval one special video')
 parser.add_argument('--vis', action='store_true', help='whether visualzie result')
 parser.add_argument('--tracker_descrip', type=str, default='default')
-
-parser.add_argument('--start', default=1, type=int, help='the start index of the testing checkpoints')
-parser.add_argument('--end', default=1, type=int, help='the end index of the testing checkpoints')
-parser.add_argument('--run_times', default=1, type=int, help='the name of the tracker')
 
 args = parser.parse_args()
 
 torch.set_num_threads(1)
 
 
-def main(checkpoint_num, run_id):
+def main(run_id):
     cur_dir = os.path.dirname(os.path.realpath(__file__))
-    dataset_root = os.path.join(cur_dir, '/home/zikun/repository/data/siamrpn_test_data/testing_dataset', args.dataset)
+    dataset_root = os.path.join(cur_dir, 'path of your testing dataset', args.dataset)
 
     visdom_info = {'use_visdom': args.use_visdom, 'server': args.visdom_server, 'port': args.visdom_port}
 
-    config_tracker = Tracker(args.tracker_name, args.tracker_param, run_id=run_id, checkpoint_path=args.checkpoint_path, checkpoint_num=checkpoint_num, dataset_name=args.dataset)
+    config_tracker = Tracker(args.tracker_name, args.tracker_param, run_id=run_id, dataset_name=args.dataset)
     if 'VOT' in args.dataset or 'vot' in args.dataset:
         tracker = config_tracker.run_vot_pysot(args.debug, visdom_info)
     else:
@@ -78,10 +72,7 @@ def main(checkpoint_num, run_id):
                 if video.name != args.video:
                     continue
             # save results
-            if checkpoint_num is None:
-                video_path = '{}/{}/{}/{}/{:s}'.format('tracking_results', args.tracker_name, args.tracker_param, args.dataset, args.tracker_descrip)
-            else:
-                video_path = '{}/{}/{}/{}/{:s}_{:04d}'.format('tracking_results', args.tracker_name, args.tracker_param, args.dataset, args.tracker_descrip, checkpoint_num)
+            video_path = '{}/{}/{}/{}/{:s}'.format('tracking_results', args.tracker_name, args.tracker_param, args.dataset, args.tracker_descrip)
             if run_id is None:
                 pass
             else:
@@ -166,10 +157,7 @@ def main(checkpoint_num, run_id):
                 # test one special video
                 if video.name != args.video:
                     continue
-            if checkpoint_num is None:
-                model_path = '{}/{}/{}/{}/{:s}'.format('tracking_results', args.tracker_name, args.tracker_param, args.dataset, args.tracker_descrip)
-            else:
-                model_path = '{}/{}/{}/{}/{:s}_{:04d}'.format('tracking_results', args.tracker_name, args.tracker_param, args.dataset, args.tracker_descrip, checkpoint_num)
+            model_path = '{}/{}/{}/{}/{:s}'.format('tracking_results', args.tracker_name, args.tracker_param, args.dataset, args.tracker_descrip)
             if run_id is None:
                 pass
             else:
@@ -177,9 +165,7 @@ def main(checkpoint_num, run_id):
             if not os.path.isdir(model_path):
                 os.makedirs(model_path)
             result_path = os.path.join(model_path, '{}.txt'.format(video.name))
-            #if os.path.exists(result_path):
-            #    print(result_path, 'exists!')
-            #    continue
+            
             toc = 0
             pred_bboxes = []
             scores = []
@@ -262,24 +248,8 @@ def main(checkpoint_num, run_id):
 
 
 if __name__ == '__main__':
-    if args.run_times > 1:
-        if args.run_id is None:
-            start_run_id=0
-        else:
-            start_run_id=args.run_id
-        for run_id in range(start_run_id, start_run_id+args.run_times+1):
-            if args.checkpoint_num is not None:
-                main(args.checkpoint_num, run_id)
-            elif args.start is not None and args.end is not None:
-                for ckpt_num in range(args.start, args.end+1):
-                    main(ckpt_num, run_id)
-            else:
-                raise ValueError('Unknown checkpoint index.')
+    if args.run_id is None:
+        main(args.run_id)
     else:
-        if args.checkpoint_num is not None:
-            main(args.checkpoint_num, args.run_id)
-        elif args.start is not None and args.end is not None:
-            for ckpt_num in range(args.start, args.end+1):
-                main(ckpt_num, args.run_id)
-        else:
-            raise ValueError('Unknown checkpoint index.')
+        for id in range(args.run_id):
+            main(id)

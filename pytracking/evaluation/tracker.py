@@ -44,8 +44,7 @@ class Tracker:
     """
 
     def __init__(self, name: str, parameter_name: str, run_id: int = None, display_name: str = None,
-                       dataset_name:str = None, checkpoint_path: str = None,
-                       checkpoint_num: int = None, tracker_descrip: str = 'default'):
+                       dataset_name:str = None, tracker_descrip: str = 'default'):
         assert run_id is None or isinstance(run_id, int)
 
         self.name = name
@@ -53,8 +52,6 @@ class Tracker:
         self.run_id = run_id
         self.display_name = display_name
         self.dataset_name = dataset_name
-        self.checkpoint_path = checkpoint_path
-        self.checkpoint_num = checkpoint_num
         self.tracker_descrip = tracker_descrip
 
 
@@ -63,13 +60,10 @@ class Tracker:
                                               self.dataset_name, self.tracker_descrip)
         segmentation_dir = '{}/{}/{}/{}/{}'.format(env.segmentation_path, self.name, self.parameter_name,
                                               self.dataset_name, self.tracker_descrip)
-        if self.checkpoint_num is None:
-            self.results_dir = results_dir
-            self.segmentation_dir = segmentation_dir
-        else:
-            self.results_dir = '{}_{:04d}'.format(results_dir, self.checkpoint_num)
-            self.segmentation_dir = '{}_{:04d}'.format(segmentation_dir, self.checkpoint_num)
-
+        
+        self.results_dir = results_dir
+        self.segmentation_dir = segmentation_dir
+        
         if self.run_id is None:
             self.results_dir = self.results_dir
             self.segmentation_dir = self.segmentation_dir
@@ -706,7 +700,7 @@ class Tracker:
     def get_parameters(self):
         """Get parameters."""
         param_module = importlib.import_module('pytracking.parameter.{}.{}'.format(self.name, self.parameter_name))
-        params = param_module.parameters(self.checkpoint_path, self.checkpoint_num)
+        params = param_module.parameters()
         return params
 
 

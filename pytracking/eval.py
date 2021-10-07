@@ -43,9 +43,7 @@ def main():
     assert len(trackers) > 0
     args.num = min(args.num, len(trackers))
 
-    #root = os.path.realpath(os.path.join(os.path.dirname(__file__), '../testing_dataset'))
-    root = os.path.realpath(os.path.join('/home/zikun/repository/data/siamrpn_test_data/testing_dataset'))
-    #root = os.path.realpath(os.path.join('/home/zikun/repository/data/raw_data/'))
+    root = os.path.realpath(os.path.join('path of your testing datasets'))
     root = os.path.join(root, args.dataset)
     if 'OTB' in args.dataset:
         dataset = OTBDataset(args.dataset, root)

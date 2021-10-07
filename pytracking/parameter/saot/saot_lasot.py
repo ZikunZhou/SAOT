@@ -1,7 +1,7 @@
 from pytracking.utils import TrackerParams
 from pytracking.features.net_wrappers import NetWithBackbone
 
-def parameters(checkpoint_path: str = None, checkpoint_num: int = None):
+def parameters():
     params = TrackerParams()
 
     params.debug = 0
@@ -57,11 +57,7 @@ def parameters(checkpoint_path: str = None, checkpoint_num: int = None):
     params.box_refinement_step_length = 1
     params.box_refinement_step_decay = 1
 
-    assert(checkpoint_path is not None and checkpoint_num is not None), 'To test glse tracker, ckpt_path and ckpt_num must be given!'
-
-    net_name = '{:s}/DiMPnet_ep{:04d}.pth.tar'.format(checkpoint_path, checkpoint_num)
-
-    params.net = NetWithBackbone(net_path=net_name,
+    params.net = NetWithBackbone(net_path='SAOT_LaSOT.pth',
                                  use_gpu=params.use_gpu)
 
     params.vot_anno_conversion_type = 'preserve_area'

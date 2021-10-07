@@ -67,38 +67,3 @@ class SKLayer(nn.Module):
         feature_v = self.bn((features * attention_vectors).sum(dim=1))
 
         return feature_v
-
-
-class SeLayer(nn.Module):
-    def __init__(self, cfg, in_channels, L = 16):
-        super(SeLayer, self).__init__()
-        self.down_ratio = cfg.MODEL.SE.DOWN_RATIO#fc layers的下采样比例
-        #self.down_ratio = 4
-        self.d = max(int(in_channels/self.down_ratio), L)#中间fc　layer的神经元数量
-        self.gap = nn.AdaptiveAvgPool2d((1,1))
-        self.fc = nn.Sequential(
-            nn.Linear(in_channels, self.d, bias = False),
-            nn.ReLU(inplace = False),
-            nn.Linear(self.d, in_channels, bias = False),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x):
-        batch, channel, _, _ = x.size()
-        y = self.gap(x).view(batch, channel)
-        y = self.fc(y).view(batch, channel, 1, 1)
-        #return x * y.expand_as(x)
-        return y
-
-
-if __name__=='__main__':
-    x1 = torch.rand(8,512,32,32)
-    x2 = torch.rand(8,1024,32,32)
-    x3 = torch.rand(8,2048,32,32)
-    x = [x1, x2, x3]
-    conv = SKLayer()
-    print(conv)
-    out = conv(x)
-    print(out.shape)
-    for key, param in conv.named_parameters():
-        print(key)

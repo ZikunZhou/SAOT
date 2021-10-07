@@ -29,6 +29,10 @@ class SAOT(BaseTracker):
         self.frame_num = 1
         if not self.params.has('device'):
             self.params.device = 'cuda' if self.params.use_gpu else 'cpu'
+        if self.params.get('perform_post_process', False):
+            cfg.WINDOW_INFLUENCE = self.params.WINDOW_INFLUENCE
+            cfg.PENALTY_K = self.params.PENALTY_K
+            cfg.LR = self.params.LR
 
         # Initialize network
         self.initialize_features()
@@ -65,11 +69,6 @@ class SAOT(BaseTracker):
         ss_feat_sz = self.params.get('subsearch_feat_sz', 18)
         self.subsearch_feat_sz = torch.Tensor([ss_feat_sz, ss_feat_sz] if isinstance(ss_feat_sz, int) else ss_feat_sz)
         self.regnet_stride = self.params.get('regnet_stride', 8)
-
-        # generate cosine window, used for off-line prediction
-        # hanning = np.hanning(ss_feat_sz)
-        # window = np.outer(hanning, hanning)
-        # self.window = window.flatten()
 
         # Set search area
         search_area = torch.prod(self.target_sz * self.params.search_area_scale).item()
@@ -221,7 +220,7 @@ class SAOT(BaseTracker):
             raise Exception('Unknown score_preprocess in params.')
 
         score_filter_ksz = self.params.get('score_filter_ksz', 1)
-        if score_filter_ksz > 1:# actually false
+        if score_filter_ksz > 1:
             assert score_filter_ksz % 2 == 1
             kernel = scores.new_ones(1,1,score_filter_ksz,score_filter_ksz)
             scores = F.conv2d(scores.view(-1,1,*scores.shape[-2:]), kernel, padding=score_filter_ksz//2).view(scores.shape)
