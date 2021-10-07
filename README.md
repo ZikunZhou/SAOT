@@ -53,10 +53,17 @@ cd ltr
 python run_training.py dimp saot
 ```
 
+## Citation
+Please cite the following publication, if you find the code helpful in your research.
+```
+@article{zhou2021saliency,
+  title={Saliency-Associated Object Tracking},
+  author={Zhou, Zikun and Pei, Wenjie and Li, Xin and Wang, Hongpeng and Zheng, Feng and He, Zhenyu},
+  journal={arXiv preprint arXiv:2108.03637},
+  year={2021}
+}
+```
+
+
 ## Acknowledgments
 Thanks for the [PyTracking](https://github.com/visionml/pytracking) and [Pysot](https://github.com/STVIR/pysot.git) libraries, which helps us to quickly implement our ideas.
-=======
-official implemetation for Saliency-Associated Object Tracking
-
-Our codes are comming soon.
->>>>>>> 159d5c967d6959d44f7a5d427875bd111661f537
