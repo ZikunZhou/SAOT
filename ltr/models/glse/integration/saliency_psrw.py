@@ -1,12 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ltr.admin.utils import Visualizer
 from collections import OrderedDict
 import math, itertools
 import numpy as np
-
-a = Visualizer()
 
 class SaliencyEvaluator_PSRW(nn.Module):
     def __init__(self, mainlobe_window_radius_priori=1.5, mainlobe_window_radius_max=4,
@@ -60,7 +57,7 @@ class SaliencyEvaluator_PSRW(nn.Module):
                             mainlobe_window_priori[...,1].clamp(min=0, max=width-1)], dim=-1)
         mainlobe_window_priori = mainlobe_window_priori.view(batch*channel, -1, 2).cpu()
         priori_weights = torch.ones(batch*channel, height, width, device=cost_volume.device)
-        # priori_weights, 主瓣对应的位置为0, 旁瓣对应的位置为1
+        
         num_mainlobe_points_priori = mainlobe_window_priori.shape[1]
         batch_index_priori = torch.arange(batch*channel).unsqueeze(-1).expand(-1, num_mainlobe_points_priori)
 
@@ -106,12 +103,7 @@ class SaliencyEvaluator_PSRW(nn.Module):
         mask_weights[batch_index.numpy().tolist(), mainlobe_window[...,0].numpy().tolist(), \
                                 mainlobe_window[...,1].numpy().tolist()] = 0
 
-        #print(mainlobe_window.shape)
-        #print(mask_weights.shape)
-        #print(peak_coords_flatten[0])
-        #print(mask_weights[0])
-        #print(mainlobe_widthes[0])
-
+        
         mask_weights = mask_weights.view(batch*channel, height*width)
         num_sidelobe_points = mask_weights.sum(dim=-1, keepdim=True)
         assert(torch.all(num_sidelobe_points>=2)), 'The sidelobe area is too small!'
@@ -126,8 +118,6 @@ class SaliencyEvaluator_PSRW(nn.Module):
 
         saliency = psrw / (psrw.mean(dim=-1, keepdim=True)+1e-8)
 
-        #print('saliency', saliency[0])
-        #print(saliency.mean(dim=-1), saliency.var(dim=-1))
         if self.detach_saliency:
             return saliency.detach()
         else:

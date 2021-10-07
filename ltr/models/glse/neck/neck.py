@@ -41,12 +41,12 @@ class AdjustLayer(nn.Module):
             roi_xyxy = torch.cat((roi[:, 0:2], roi[:,0:2]+roi[:,2:4]), dim=-1)
             roi = torch.cat((batch_index, roi_xyxy), dim=-1)
 
-        x = self.downsample(x)#shape=[num_sequences, batch, height, width]
+        x = self.downsample(x)
         x = self.adjust(x)
         channel = x.shape[1]
 
         assert(roi.shape[-1]==5), 'The coordinates of rois need to include the batch index!'
-        # roi的坐标格式是 [index, x1, y1, x2, y2]
+        # roi: [index, x1, y1, x2, y2]
         if tmp_flag:
             roi_feature = self.prroi_pool_tmp(x, roi)
         else:

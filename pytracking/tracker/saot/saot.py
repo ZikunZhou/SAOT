@@ -1,13 +1,9 @@
-# glse for visualizatio
 from pytracking.tracker.base import BaseTracker
 import torch
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.ticker as ticker
 import numpy as np
 import math
-import time, os, cv2
+import time
 from pytracking import dcf, TensorList
 from pytracking.features.preprocessing import numpy_to_torch
 from pytracking.utils.plotting import show_tensor, plot_graph
@@ -17,14 +13,9 @@ import ltr.data.bounding_box_utils as bbutils
 from ltr.models.target_classifier.initializer import FilterInitializerZero
 from ltr.models.layers import activation
 from ltr.external.PreciseRoIPooling.pytorch.prroi_pool import prroi_pool2d
-from ltr.admin.utils import Visualizer
 from pytracking.evaluation.config import cfg
 
-__visualize__ = False
-visualizer = Visualizer()
-visual_root_path = '/home/zikun/work/tracking/KPTracking/New_KPT/KPT_Visual/3D_similarity_maps'
-
-class GLSE(BaseTracker):
+class SAOT(BaseTracker):
 
     multiobj_mode = 'parallel'
 
@@ -36,18 +27,15 @@ class GLSE(BaseTracker):
     def initialize(self, image, info: dict) -> dict:
         # Initialize some stuff
         self.frame_num = 1
-        self.video_name = info['video_name']
         if not self.params.has('device'):
             self.params.device = 'cuda' if self.params.use_gpu else 'cpu'
 
-        if __visualize__:
-            self.visualizer = Visualizer()
         # Initialize network
         self.initialize_features()
 
         # The DiMP network
         self.net = self.params.net
-        #print(self.net)
+        
         # Time initialization
         tic = time.time()
 
@@ -56,8 +44,6 @@ class GLSE(BaseTracker):
 
         # Get target position and size, state coordinates defination [x1, y1, w, h]
         state = info['init_bbox']
-        #print('init_state', state)
-        #初始帧/前一帧/当前帧目标中心在原始图像上的位置
         self.pos = torch.Tensor([state[1] + (state[3] - 1)/2, state[0] + (state[2] - 1)/2])# [yc, xc]
         self.target_sz = torch.Tensor([state[3], state[2]])# [h, w]
 
@@ -67,7 +53,7 @@ class GLSE(BaseTracker):
 
         # Set sizes
         self.image_sz = torch.Tensor([im.shape[2], im.shape[3]])
-        sz = self.params.image_sample_size#采样的图像最后resize得到的尺寸, 18×16, 16是total_stride
+        sz = self.params.image_sample_size
         sz = torch.Tensor([sz, sz] if isinstance(sz, int) else sz)
         if self.params.get('use_image_aspect_ratio', False):# actually false
             sz = self.image_sz * sz.prod().sqrt() / self.image_sz.prod().sqrt()
@@ -81,16 +67,14 @@ class GLSE(BaseTracker):
         self.regnet_stride = self.params.get('regnet_stride', 8)
 
         # generate cosine window, used for off-line prediction
-        hanning = np.hanning(ss_feat_sz)
-        window = np.outer(hanning, hanning)
-        self.window = window.flatten()
+        # hanning = np.hanning(ss_feat_sz)
+        # window = np.outer(hanning, hanning)
+        # self.window = window.flatten()
 
         # Set search area
         search_area = torch.prod(self.target_sz * self.params.search_area_scale).item()
-        # 搜索区域相对于图像采样尺寸(sample_size)的缩放尺度
         self.target_scale =  math.sqrt(search_area) / self.img_sample_sz.prod().sqrt()
 
-        # Target size in base scale 将搜索区域缩放到图像块采样尺度(sample_size)时目标的尺寸
         self.base_target_sz = self.target_sz / self.target_scale
 
         # Setup scale factors
@@ -104,14 +88,14 @@ class GLSE(BaseTracker):
         self.max_scale_factor = torch.min(self.image_sz / self.base_target_sz)
 
         # Extract and transform sample
-        init_backbone_feat = self.generate_init_samples(im)# collections.OrderedDict
+        init_backbone_feat = self.generate_init_samples(im)
 
         # Initialize classifier
-        init_skfuse_feat = self.init_classifier(init_backbone_feat)# torch.Tensor
+        init_skfuse_feat = self.init_classifier(init_backbone_feat)
 
-        # Initialize GLSE
+        # Initialize SAOT
         if self.params.get('use_iou_net', True):
-            self.init_glse_net(init_skfuse_feat)
+            self.init_saot_net(init_skfuse_feat)
             self.points = self.generate_points(self.regnet_stride, self.subsearch_feat_sz)#[x,y]
         out = {'time': time.time() - tic}
         return out
@@ -126,14 +110,7 @@ class GLSE(BaseTracker):
         # Convert image
         im = numpy_to_torch(image)
 
-        # ------- LOCALIZATION ------- #
-
         # Extract backbone features
-        # self.target_scale: search_area / self.img_sample_sz
-        # self.target_scale * self.params.scale_factors: Image scales to extract image patches from
-        # self.img_sample_sz: Size to resize the image samples to
-        # im_patches: torch.Tensor, shape=[1, 3, 288, 288]
-        # sample_coords: 在原始图像上采样的图像块的坐标, im_patches:缩放至指定尺寸的图像块
         backbone_feat, sample_coords, im_patches = self.extract_backbone_features(im, self.get_centered_sample_pos(),
                                                                       self.target_scale * self.params.scale_factors,
                                                                       self.img_sample_sz)
@@ -143,16 +120,10 @@ class GLSE(BaseTracker):
         test_x = test_x.detach()
         test_skfeat = test_skfeat.detach()
 
-        # Location of sample 实际采样image_patch的时候可能会存在量化取整的问题, 因此重新计算了sample_scales, 其值与self.target_scale十分接近
-        # sample_pos 在原始图像上的采样中心
         sample_pos, sample_scales = self.get_sample_location(sample_coords)
 
         # Compute classification scores
         scores_raw = self.classify_target(test_x)
-
-        if __visualize__:
-            self.im_patches = im_patches
-            self.scores_raw = scores_raw
 
         # Localize the target
         translation_vec, scale_ind, s, flag = self.localize_target(scores_raw, sample_pos, sample_scales)
@@ -162,16 +133,14 @@ class GLSE(BaseTracker):
         if flag != 'not_found':
             if self.params.get('use_iou_net', True):
                 update_scale_flag = self.params.get('update_scale_when_uncertain', True) or flag != 'uncertain'
-                if self.params.get('use_classifier', True):#Undefined, return True
+                if self.params.get('use_classifier', True):
                     self.update_state(new_pos)
 
                 self.target_state_estimate(test_skfeat, sample_pos[scale_ind,:], sample_scales[scale_ind], s[scale_ind,...], scale_ind, update_scale_flag)
-                #self.refine_target_box(backbone_feat, sample_pos[scale_ind,:], sample_scales[scale_ind], scale_ind, update_scale_flag)
             elif self.params.get('use_classifier', True):
                 self.update_state(new_pos, sample_scales[scale_ind])
 
-        # ------- UPDATE ------- #
-
+        # update
         update_flag = flag not in ['not_found', 'uncertain']
         hard_negative = (flag == 'hard_negative')
         learning_rate = self.params.get('hard_negative_learning_rate', None) if hard_negative else None
@@ -210,7 +179,7 @@ class GLSE(BaseTracker):
             output_state = [-1, -1, -1, -1]
         else:
             output_state = new_state.tolist()
-        #print('frame_{:d}_output_state'.format(self.frame_num), output_state)
+        
         out = {'target_bbox': output_state}
         return out
 
@@ -282,22 +251,23 @@ class GLSE(BaseTracker):
         """
 
         sz = scores.shape[-2:]
-        score_sz = torch.Tensor(list(sz))#[19, 19]
-        output_sz = score_sz - (self.kernel_size + 1) % 2#[18, 18]
-        score_center = (score_sz - 1)/2#[9,9]
+        score_sz = torch.Tensor(list(sz))
+        output_sz = score_sz - (self.kernel_size + 1) % 2
+        score_center = (score_sz - 1)/2
 
         scores_hn = scores
-        if self.output_window is not None and self.params.get('perform_hn_without_windowing', False):
+        if self.params.get('perform_post_process', False):
             scores_hn = scores.clone()
-            scores *= self.output_window
+            scores = scores * (1 - cfg.WINDOW_INFLUENCE) + self.window.to(scores.device) * cfg.WINDOW_INFLUENCE
+            #scores *= self.output_window
 
-        max_score1, max_disp1 = dcf.max2d(scores)# max_disp1:[[max_row, max_column]]
+        max_score1, max_disp1 = dcf.max2d(scores)
         _, scale_ind = torch.max(max_score1, dim=0)
         sample_scale = sample_scales[scale_ind]
         max_score1 = max_score1[scale_ind]
         max_disp1 = max_disp1[scale_ind,...].float().cpu().view(-1)
 
-        target_disp1 = max_disp1 - score_center# 在cls_feature上的位移
+        target_disp1 = max_disp1 - score_center
         translation_vec1 = target_disp1 * (self.img_support_sz / output_sz) * sample_scale
 
         if max_score1.item() < self.params.target_not_found_threshold:
@@ -535,7 +505,7 @@ class GLSE(BaseTracker):
             self.target_sz = self.base_target_sz * self.target_scale
 
         # Update pos
-        inside_ratio = self.params.get('target_inside_ratio', 0.2)# Undefined, Return 0.2
+        inside_ratio = self.params.get('target_inside_ratio', 0.2)
         inside_offset = (inside_ratio - 0.5) * self.target_sz
         self.pos = torch.max(torch.min(new_pos, self.image_sz - inside_offset), inside_offset)
 
@@ -574,7 +544,7 @@ class GLSE(BaseTracker):
         predicted_center = (subsearch_sz - 1)/2 - torch.tensor([shift_y, shift_x])
         return subsearch_window_coord, window_lt, predicted_center
 
-    def init_glse_net(self, backbone_feat):
+    def init_saot_net(self, backbone_feat):
         """
         args:
             backbone_feat - collections.OrderedDict
@@ -592,7 +562,6 @@ class GLSE(BaseTracker):
         target_boxes = torch.cat(target_boxes.view(1,4), 0).to(self.params.device)
 
         # Get iou features iou_backbone_feat (list)
-        # iou_backbone_feat = self.get_iou_backbone_features(backbone_feat)
         if target_boxes.shape[0] == 1:
             se_feat = self.adjust_skfeat(backbone_feat[0,...].unsqueeze(0))
         else:
@@ -636,12 +605,11 @@ class GLSE(BaseTracker):
 
         # Construct output window
         self.output_window = None
-        if self.params.get('window_output', False):
-            if self.params.get('use_clipped_window', False):
-                self.output_window = dcf.hann2d_clipped(self.output_sz.long(), (self.output_sz*self.params.effective_search_area / self.params.search_area_scale).long(), centered=True).to(self.params.device)
-            else:
-                self.output_window = dcf.hann2d(self.output_sz.long(), centered=True).to(self.params.device)
-            self.output_window = self.output_window.squeeze(0)
+        if self.params.get('perform_post_process', False):
+            # generate cosine window, used for off-line prediction
+            hanning = np.hanning(self.output_sz.long()[0].item())
+            self.window = torch.from_numpy(np.outer(hanning, hanning)).unsqueeze(0).to(torch.float)
+
 
         # Get target boxes for the different augmentations
         target_boxes = self.init_target_boxes()
@@ -736,78 +704,6 @@ class GLSE(BaseTracker):
                 elif self.params.debug >= 3:
                     plot_graph(self.losses, 10, title='Training Loss' + self.id_str)
 
-    def visual_analyze(self, xcorr_map):
-        if self.frame_num != 2:
-            return
-        fig = plt.figure()
-        ax = Axes3D(fig)
-        x = np.arange(0, 36, 0.2)
-        y = np.arange(0, 36, 0.2)
-        x, y = np.meshgrid(x, y)
-
-        #del matplotlib.font_manager.weight_dict['roman']
-        #matplotlib.font_manager._rebuild()
-        for i, cost_volume in enumerate(xcorr_map[0]):
-            #if i != 27:
-            if i != 31:
-                continue
-            saving_path = os.path.join(visual_root_path, self.video_name)
-            if not os.path.exists(saving_path):
-                os.makedirs(saving_path)
-            cost_volume = cost_volume.detach().cpu().numpy()
-            cost_volume = cv2.resize(cost_volume, (180, 180), interpolation=cv2.INTER_LINEAR)
-            plt.subplots_adjust(left=0.05, right=0.85, top=0.9, bottom=0.1)
-            ax.plot_surface(x, y, cost_volume * 5, rstride = 1, # row 行步长
-                         cstride = 2, # colum 列步长
-                         cmap=plt.cm.viridis) # 渐变颜色
-            #ax.contour(x, y, cost_volume, zdir = 'z', offset = 0, cmap = plt.get_cmap('viridis'))
-            #ax.contourf(x, y, cost_volume, [0, cost_volume.mean()], zdir = 'z', offset = -2, cmap = plt.get_cmap('viridis'))
-            #ax.contourf(x, y, cost_volume, 100 ,zdir = 'z', offset = -0.8, cmap = plt.get_cmap('viridis'))
-            #ax.contour(x, y, cost_volume, [0, cost_volume.mean()-0.01],  zdir = 'z', offset = -0.8, colors='w')
-            ax.set_zlim(-0.8, 4)
-            """
-            font = {'family' : 'Times New Roman',#'Times New Roman',
-                    'weight' : 'light',
-                    'size'   : 18}
-            #plt.xticks(fontproperties = 'Times New Roman', size = 22)
-            #plt.yticks(fontproperties = 'Times New Roman', size = 22)
-            #plt.zticks(fontproperties = 'Times New Roman', size = 22)
-            ax.xaxis.set_major_locator(ticker.MultipleLocator(10))
-            ax.yaxis.set_major_locator(ticker.MultipleLocator(10))
-            ax.set_xticklabels([0, 5, 15, 25, 35], fontproperties='Times New Roman',  fontsize = 12)
-            ax.set_yticklabels([0, 5, 15, 25, 35], fontproperties='Times New Roman', fontsize = 12)
-            ax.set_zticklabels([0, 0.2, 0.4, 0.6, 0.8], fontproperties='Times New Roman', fontsize = 12)
-            ax.set_xlabel(xlabel='x',fontdict=font)
-            ax.set_ylabel(ylabel='y',fontdict=font)
-            ax.set_zlabel(zlabel='similarity',fontdict=font)
-            """
-            plt.axis('off')
-            plt.savefig(os.path.join(saving_path, 'frame{:04d}_channel{:03d}.jpg'.format(self.frame_num, i)))
-            plt.show()
-            ax.clear()
-            #raise Exception
-        #visualizer.visualize_tensor_image(self.im_patches[0], 144, path=visual_root_path,
-        #                            name='{:04d}_search_image'.format(self.frame_num))
-
-        #visualizer.visualize_multi_map_sum(modulated_search[0], 144, path=visual_root_path,
-        #                            name='{:04d}_modulated_search'.format(self.frame_num))
-
-        #for i, single_search_map in enumerate(modulated_search[0]):
-        #    visualizer.visualize_single_map(single_search_map.unsqueeze(0), 144, path=visual_root_path,
-        #                            name='{:04d}_{:03d}_ssm'.format(self.frame_num, i))
-        #print(modulated_search.shape)
-        #raise Exception
-        #visualizer.merge_tensor_image_and_single_map(self.im_patches[0], F.sigmoid(spatial_mask[0]), 144, path=visual_root_path,
-        #                            name='{:04d}_merge_mask'.format(self.frame_num))
-
-        #for i, xcorr_m in enumerate(xcorr_map.permute(1,0,2,3)):
-            #print(xcorr_m.shape)
-        #    visualizer.merge_tensor_image_and_single_map(self.im_patches[0], xcorr_m, 144, path=visual_root_path,
-        #                                name='{:04d}_{:02d}_merge_xcorr'.format(self.frame_num, i))
-
-
-        #raise Exception
-
     def _convert_score(self, score):
         score = score.softmax(dim=1)[:, 1, ...].cpu().squeeze()
         return score
@@ -849,23 +745,12 @@ class GLSE(BaseTracker):
             sample_pos, sample_scale, self.pos, self.target_sz (Tensor, cpu)
             online_score (Tensor) - [19, 19]
         """
-        #要加一个先验的限制, 避免回归得到的bounding box center偏离online prediction太多
-        #避免回归的目标尺度和纵横比与前一帧相比差距过大
         subsearch_window_coord, window_lt, predicted_center = self.get_subsearch_window(self.pos, sample_pos,
                                                         sample_scale, self.regnet_stride*self.subsearch_feat_sz)
 
         se_feat = self.adjust_skfeat(skfeat)
-        # bbox_offsets.shape = [1, 4, 18, 18]
-        if __visualize__:
-            sw_left, sw_top = torch.round(subsearch_window_coord[0,0:2]).to(torch.int).numpy().tolist()
-            sw_right, sw_bottom = torch.round(subsearch_window_coord[0,0:2]+subsearch_window_coord[0,2:4]-1).to(torch.int).numpy().tolist()
-            self.im_patches = self.im_patches[..., sw_top:sw_bottom, sw_left:sw_right]
-            bbox_offsets, output_cls, xcorr_map, processed_xcorr_map = self.net.state_estimator.track(self.template, se_feat, subsearch_window_coord.to(skfeat.device),
-                                *(self.subsearch_feat_sz.to(torch.int).numpy().tolist()))
-            self.visual_analyze(xcorr_map)
-
-        else:
-            bbox_offsets, output_cls = self.net.state_estimator.track(self.template, se_feat, subsearch_window_coord.to(skfeat.device),
+        
+        bbox_offsets, output_cls = self.net.state_estimator.track(self.template, se_feat, subsearch_window_coord.to(skfeat.device),
                                 *(self.subsearch_feat_sz.to(torch.int).numpy().tolist()))
 
         detections = self._convert_bbox(bbox_offsets)
@@ -894,7 +779,6 @@ class GLSE(BaseTracker):
                          (detections[2, :]/detections[3, :]))
                 penalty = np.exp(-(r_c * s_c - 1) * cfg.PENALTY_K)
                 p_fuse_score = penalty * fuse_score
-                p_fuse_score = p_fuse_score * (1 - cfg.WINDOW_INFLUENCE) + self.window * cfg.WINDOW_INFLUENCE
 
                 best_idx = np.argmax(p_fuse_score)
                 lr = penalty[best_idx] * p_fuse_score[best_idx] * cfg.LR
@@ -914,7 +798,7 @@ class GLSE(BaseTracker):
             new_pos, new_target_sz = self._bbox_clip(new_pos, new_target_sz)
 
         else:
-            #-----------------start: only using online score without postprocessing------------------
+            # only using online score without postprocessing
             neighbour, weight = self.compute_neighbour(predicted_center, self.regnet_stride, self.subsearch_feat_sz)
             selected_detections = torch.stack([detections[:,n[0],n[1]] for n in neighbour], dim=0)
             target_state_subwindow = (selected_detections * weight.unsqueeze(1)).sum(0).cpu()
@@ -924,7 +808,6 @@ class GLSE(BaseTracker):
             new_pos = (new_pos - (self.img_sample_sz - 1) / 2) * sample_scale + sample_pos
             new_target_sz = (target_state[2:4] - target_state[0:2] + 1) * sample_scale# [h ,w]
             new_pos, new_target_sz = self._bbox_clip(new_pos, new_target_sz)
-            #-----------------end: only using online score without postprocessing------------------
 
         new_scale = torch.sqrt(new_target_sz.prod() / self.base_target_sz.prod())
 
@@ -1177,8 +1060,6 @@ class GLSE(BaseTracker):
         row_indices, column_indices = torch.meshgrid(row_index, column_index)
         points = torch.stack([column_indices, row_indices], dim=0).to(torch.float)
         return points
-
-
 
     def visualize_iou_pred(self, iou_features, center_box):
         center_box = center_box.view(1,1,4)

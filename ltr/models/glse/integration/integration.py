@@ -73,8 +73,6 @@ class Integration(nn.Module):
         self.use_priori_mask_plus = integrate_opt.use_priori_mask_plus
         if self.use_priori_mask:
             self.priori_mask = self.generate_priori_gauss(neck_opt.pool_size_tmp, sigma_factor=integrate_opt.priori_mask_sigma).view(-1)
-            #self.priori_mask = self.priori_mask / self.priori_mask.mean()
-
         if integrate_opt.learn_supress_sigma_factor:
             self.supress_sigma_factor = nn.Parameter(torch.tensor(integrate_opt.supress_sigma_factor))
         else:
@@ -127,7 +125,6 @@ class Integration(nn.Module):
         return modulated_search
 
     def find2Dpeak(self, xcorr_map):
-        #不同的channel的peak可能重叠了
         batch, channel, height, width = xcorr_map.shape
         max_indices = torch.argmax(xcorr_map.view(batch, channel, -1), dim=2)
         y_coordinates, x_coordinates = max_indices/width, torch.remainder(max_indices, width)

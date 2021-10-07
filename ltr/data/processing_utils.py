@@ -4,7 +4,6 @@ import cv2 as cv
 import random
 import torch.nn.functional as F
 from .bounding_box_utils import rect_to_rel, rel_to_rect
-from ltr.admin.utils import Visualizer
 
 def sample_target(im, target_bb, search_area_factor, output_sz=None, mask=None):
     """ Extracts a square crop centered at target_bb box, of area search_area_factor^2 times target_bb area

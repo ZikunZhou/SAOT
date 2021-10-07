@@ -10,16 +10,16 @@ def parameters(checkpoint_path: str = None, checkpoint_num: int = None):
     params.use_gpu = True
 
     # Learning parameters
-    params.sample_memory_size = 250
+    params.sample_memory_size = 100
     params.learning_rate = 0.0075
     params.init_samples_minimum_weight = 0.0
     params.train_skipping = 10
 
     # Net optimization params
     params.update_classifier = True
-    params.net_opt_iter = 25
-    params.net_opt_update_iter = 3
-    params.net_opt_hn_iter = 3
+    params.net_opt_iter = 15
+    params.net_opt_update_iter = 2
+    params.net_opt_hn_iter = 2
 
     # Detection parameters
     params.window_output = True
@@ -27,12 +27,12 @@ def parameters(checkpoint_path: str = None, checkpoint_num: int = None):
     # Init augmentation parameters
     params.use_augmentation = True
     params.augmentation = {'fliplr': True,
-                           'rotate': [5, -5, 10, -10, 20, -20, 30, -30, 45, -45, -60, 60],
-                           'blur': [(2, 0.2), (0.2, 2), (3, 1), (1, 3), (2, 2)],
-                           'relativeshift': [(0.6, 0.6), (-0.6, 0.6), (0.6, -0.6), (-0.6, -0.6)],
-                           'dropout': (7, 0.2)}
+                           'rotate': [-5, 10, -30, 60],
+                           'blur': [(2, 0.2), (1, 3)],
+                           'relativeshift': [(0.6, 0.6), (-0.6, -0.6)],
+                           'dropout': (3, 0.2)}
 
-    params.augmentation_expansion_factor = 2
+    params.augmentation_expansion_factor = 1.4
     params.random_shift_factor = 1/3
 
     # Advanced localization parameters
@@ -56,7 +56,7 @@ def parameters(checkpoint_path: str = None, checkpoint_num: int = None):
     params.box_jitter_pos = 0.1
     params.box_jitter_sz = 0.5
     params.maximal_aspect_ratio = 6
-    params.box_refinement_iter = 5
+    params.box_refinement_iter = 3
     params.box_refinement_step_length = 1
     params.box_refinement_step_decay = 1
 
@@ -69,12 +69,12 @@ def parameters(checkpoint_path: str = None, checkpoint_num: int = None):
 
     params.vot_anno_conversion_type = 'preserve_area'
 
-    params.subsearch_feat_sz = 14
+    params.subsearch_feat_sz = 16
     params.regnet_stride = 8
-    params.image_sample_size = 14 * 16
-    params.search_area_scale = 4
+    params.image_sample_size = 16 * 16
+    params.search_area_scale = 4.5
     params.fuse_online_offline = True
     params.fuse_online_weight = 0.8
-    params.perform_post_process = False
-    
+    params.perform_post_process = True
+
     return params

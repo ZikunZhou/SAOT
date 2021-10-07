@@ -35,7 +35,7 @@ class Estimator(nn.Module):
 
         assert train_boxes.dim() == 3
         num_images, num_sequences = train_boxes.shape[:2]
-        if isinstance(train_feats, list):# 适用于multi-level分别处理,暂时先不考虑这种情况
+        if isinstance(train_feats, list):
             train_feat0 = [train_feat[0,...] if train_feat.dim()==5 else \
                        train_feat.reshape(-1, num_sequences, *train_feat.shape[-3:])[0,...] \
                        for train_feat in train_feats]
@@ -54,7 +54,7 @@ class Estimator(nn.Module):
         bbox_offsets, output_cls = self.detector(modulated_search)
         return bbox_offsets, output_cls
 
-    def compute_location_map(self, response, subsearch_rois, graph_size):# 参考D3S的那个根据最大响应位置生成的map
+    def compute_location_map(self, response, subsearch_rois, graph_size):
         batch, channel, height, width = response.shape
         if self.mesh_y is None or self.mesh_x is None:
             self.mesh_y, self.mesh_x = self.compute_mesh(height, width, response)
@@ -71,9 +71,6 @@ class Estimator(nn.Module):
         max_value = location_map.view(batch, channel, -1).max(dim=-1, keepdim=True)[0].unsqueeze(-1)
         location_map = location_map / (max_value + 1e-8)
         location_map = prroi_pool2d(location_map, subsearch_rois, graph_size[0], graph_size[1], 1./self.t_stride)
-        #a = Visualizer()
-        #a.visualize_single_map(response[0], output_size=(288, 288), path='/home/zikun/work/tracking/KPT', name='responsemap')
-        #a.visualize_single_map(location_map[0], output_size=(288, 288), path='/home/zikun/work/tracking/KPT', name='locationmap')
         return location_map
 
     def compute_mesh(self, height, width, response):
@@ -109,4 +106,4 @@ class Estimator(nn.Module):
         if output_cls is not None:
             return bbox_offsets.detach(), output_cls.detach()
         else:
-            return bbox_offsets.detach(), _
+            return bbox_offsets.detach(), None

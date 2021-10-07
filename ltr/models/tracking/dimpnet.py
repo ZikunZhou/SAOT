@@ -14,7 +14,7 @@ from ltr import model_constructor
 
 
 class DiMPnet(nn.Module):
-    """The DiMP network.
+    """The SAOT network, which is based on the DiMPnet.
     args:
         feature_extractor:  Backbone feature extractor network. Must return a dict of feature maps
         classifier:  Target classification module.
@@ -69,13 +69,6 @@ class DiMPnet(nn.Module):
         bboxes, cls = self.state_estimator(train_feat_se, test_feat_se,
                             train_bb, test_win, test_bb_inwin, target_scores)
 
-        # Get bb_regressor features, turn the OrderedDict to List
-        # train_feat_iou = self.get_backbone_bbreg_feat(train_feat)
-        # test_feat_iou = self.get_backbone_bbreg_feat(test_feat)
-
-        # Run the IoUNet module
-        #responses, boxes = self.state_estimator(train_feat_iou, test_feat_iou,
-        #                        train_bb, test_win, test_bb_inwin, target_scores)
         return target_scores, bboxes, cls
 
     def adjust_skfeat(self, train_skfeat, test_skfeat, channel_importance=None):
@@ -93,18 +86,14 @@ class DiMPnet(nn.Module):
             return train_skfeat, test_skfeat
 
         #normalize the channel_importance with the sigmoid function
-        #通常情況下 normed_channel_importance最大值是1 最小值是0
         normed_channel_importance = nn.functional.sigmoid(channel_importance)
         normed_channel_importance = normed_channel_importance.unsqueeze(0).expand(num_images,-1,-1,-1,-1)
 
         normed_channel_importance = normed_channel_importance.contiguous().view(-1, *normed_channel_importance.shape[-3:])
-        #print(train_skfeat.shape, normed_channel_importance.shape)
 
         adjusted_train_skfeat = train_skfeat * normed_channel_importance
         adjusted_test_skfeat = test_skfeat * normed_channel_importance
         return adjusted_train_skfeat, adjusted_test_skfeat
-
-
 
 
     def get_backbone_clf_feat(self, backbone_feat):

@@ -117,13 +117,11 @@ class FusionGCN_SSA(nn.Module):
 
 
     def forward(self, search_feature, xcorr_map, saliency, key_coords, graph_size):
-        #起码应该加一个sigmoid
         """
         args:
             search_feature (Tensor) - shape=[num_images*num_sequences, channel, *graph_size]
             key_coords ([Tensor]) - shape=[num_images*num_sequences, num_keypoints, 2] coordinate_defination=[y, x] corresponding to [row, column]
         """
-        #print(self.alpha)
         assert(isinstance(graph_size, tuple)), 'graph_size is used as dict key, need to be a tuple!'
 
         coords_pair_kpoint, edge_weights = self.gen_kpoint_coords_pair(*graph_size, key_coords, saliency)
@@ -152,7 +150,6 @@ class FusionGCN_SSA(nn.Module):
             features (Tensor) - shape [num_images*num_sequences, channels, height, width]
             edge_weights (Tensor) - shape=[num_images*num_sequences, height*width]
         """
-        #print(self.alpha)
         if self.use_sa_adjust_edge:
             edge_weights = edge_weights.detach()
         batch, channel, height, width = features.shape
@@ -177,8 +174,7 @@ class FusionGCN_SSA(nn.Module):
 
         return torch.stack(adjacency_mats, dim=0)
 
-    def gen_8neigh_coords_pair(self, height, width):#应该对这个邻接矩阵做一个行归一化
-        #不同的图对应的这个邻接矩阵应该一致
+    def gen_8neigh_coords_pair(self, height, width):
         row_coord = torch.arange(height)
         column_coord = torch.arange(width)
         row_coords, column_coords = torch.meshgrid(row_coord, column_coord)
@@ -261,11 +257,9 @@ class FusionGCN_SSA(nn.Module):
         return normed_adjmat
 
     def gen_adj(self, A):
-        # 没有对batch进行处理
-        # A是二维邻接矩阵
         A_hat = A + torch.eye(A.shape[0]).to(A.device)
         D_hat = torch.pow(A_hat.sum(1).float(), -0.5)
-        D_hat = torch.diag(D_hat)#生成对角化的度矩阵
+        D_hat = torch.diag(D_hat)
         adj = torch.matmul(torch.matmul(A_hat, D_hat).t(), D_hat)
         return adj
 

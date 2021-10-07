@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import math, random
 import numpy as np
 from ltr.models.glse.detection.head import Point
-from ltr.admin.utils import Visualizer
+
 
 
 class BoxRegression(nn.Module):

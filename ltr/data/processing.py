@@ -2,7 +2,6 @@ import torch
 import torchvision.transforms as transforms
 from pytracking import TensorDict
 import ltr.data.processing_utils as prutils
-from ltr.admin.utils import Visualizer
 
 
 

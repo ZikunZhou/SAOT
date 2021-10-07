@@ -1,5 +1,3 @@
-#from .skconv import SKUnit
-
 import torch
 import torch.nn as nn
 import numpy as np
@@ -65,7 +63,6 @@ class BoxSE(nn.Module):
             return offsets, None
 
 class Point(object):
-    #我们这个point的生成要按照FCOS论文来搞
     def __init__(self, stride, size):
         self.stride = stride
         self.size = size
