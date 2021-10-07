@@ -1,5 +1,5 @@
 # SAOT
-<<<<<<< HEAD
+
 The official implementation of the paper [**Saliency-Associated Object Tracking**](https://arxiv.org/abs/2108.03637) (ICCV2021).
 
 ![SAOT_Framework](SAOT_framework.jpg)
