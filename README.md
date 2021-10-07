@@ -36,15 +36,20 @@ Following this instructions [detailed installation instructions](INSTALL.md) to 
 
 
 ## Testing
-Activate the conda environment and run the script pytracking/run_webcam.py to run ATOM using the webcam input.  
+Activate the conda environment and run the script pytracking/test_saot_fs.py.  
 ```bash
-conda activate pytracking
+conda activate SAOT
 cd pytracking
-python run_webcam.py dimp dimp50    
+python test_saot_fs.py saot saot_otb --dataset OTB2015
 ```
 
 ## Training
-
+Activate the conda environment and run the script ltr/run_training.py.
+```bash
+conda activate SAOT
+cd ltr
+python run_training.py dimp saot
+```
 
 ## Acknowledgments
 Thanks for the [PyTracking](https://github.com/visionml/pytracking) and [Pysot](https://github.com/STVIR/pysot.git) libraris, which helps us to quickly implement our ideas.
