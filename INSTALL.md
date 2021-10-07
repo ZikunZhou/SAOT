@@ -9,8 +9,8 @@ This document contains detailed instructions for installing the necessary depend
 ## Step-by-step instructions  
 #### Create and activate a conda environment
 ```bash
-conda create --name pytracking python=3.7
-conda activate pytracking
+conda create --name SAOT python=3.7
+conda activate SAOT
 ```
 
 #### Install PyTorch  
@@ -69,6 +69,3 @@ python -c "from ltr.admin.environment import create_default_local_file; create_d
 ```
 
 You can modify these files to set the paths to datasets, results paths etc.  
-
-
-#### Download the pre-trained networks  
