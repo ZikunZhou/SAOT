@@ -31,7 +31,7 @@ In the repository directory, run the commands:
 git submodule update --init  
 ```
 #### Install dependencies
-Following this instructions [detailed installation instructions](INSTALL.md) to install the dependencies.
+Following the [detailed installation instructions](INSTALL.md) to install the dependencies.
 
 
 ## Testing
