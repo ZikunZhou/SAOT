@@ -18,3 +18,4 @@ tensorboard/
 checkpoints/
 final_result/
 pytracking/tracking_results/
+ltr/external/
