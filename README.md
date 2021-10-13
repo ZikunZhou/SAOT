@@ -56,11 +56,13 @@ python run_training.py dimp saot
 ## Citation
 Please cite the following publication, if you find the code helpful in your research.
 ```
-@article{zhou2021saliency,
-  title={Saliency-Associated Object Tracking},
-  author={Zhou, Zikun and Pei, Wenjie and Li, Xin and Wang, Hongpeng and Zheng, Feng and He, Zhenyu},
-  journal={arXiv preprint arXiv:2108.03637},
-  year={2021}
+@InProceedings{Zhou_2021_ICCV,
+    author    = {Zhou, Zikun and Pei, Wenjie and Li, Xin and Wang, Hongpeng and Zheng, Feng and He, Zhenyu},
+    title     = {Saliency-Associated Object Tracking},
+    booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
+    month     = {October},
+    year      = {2021},
+    pages     = {9866-9875}
 }
 ```
 
