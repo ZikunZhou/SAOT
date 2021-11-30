@@ -1,10 +1,10 @@
 # Installation
 
-This document contains detailed instructions for installing the necessary dependencies for PyTracking. The instrustions have been tested on an Ubuntu 18.04 system.
+This document contains detailed instructions for installing the necessary dependencies for PyTracking. The instrustions have been tested on an Ubuntu 18.04 system with an RTX2080 GPU.
 
 ### Requirements  
 * Conda installation with Python 3.7. If not already installed, install from https://www.anaconda.com/distribution/.
-* Nvidia GPU.
+* CUDA 10.0, pytoch 1.1.0, Nvidia GPU.
 
 ## Step-by-step instructions  
 #### Create and activate a conda environment
@@ -16,11 +16,10 @@ conda activate SAOT
 #### Install PyTorch  
 Install PyTorch with cuda10.  
 ```bash
-conda install pytorch torchvision cudatoolkit=10.0 -c pytorch
+conda install pytorch=1.1 torchvision cudatoolkit=10.0 -c pytorch
 ```
 
 **Note:**  
-- It is possible to use any PyTorch supported version of CUDA (not necessarily v10).   
 - For more details about PyTorch installation, see https://pytorch.org/get-started/previous-versions/.  
 
 #### Install matplotlib, pandas, tqdm, opencv, scikit-image, visdom, tikzplotlib, gdown, and tensorboad  
