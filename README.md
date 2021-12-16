@@ -32,6 +32,7 @@ In the repository directory, run the commands:
 git submodule update --init  
 ```
 #### Install dependencies
+Please note that using a new version pytorch may cause unexpected issues.
 Following the [detailed installation instructions](INSTALL.md) to install the dependencies.
 
 
