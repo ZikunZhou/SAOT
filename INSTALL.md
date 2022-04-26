@@ -4,7 +4,7 @@ This document contains detailed instructions for installing the necessary depend
 
 ### Requirements  
 * Conda installation with Python 3.7. If not already installed, install from https://www.anaconda.com/distribution/.
-* CUDA 10.0, pytoch 1.1.0, Nvidia GPU.
+* CUDA 10.0, pytoch 1.1.0, Nvidia GPU. We found that this code is not compatible with later versions of pytorch. We will fix it as soon as possible.
 
 ## Step-by-step instructions  
 #### Create and activate a conda environment
