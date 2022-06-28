@@ -14,7 +14,9 @@ conda activate SAOT
 ```
 
 #### Install PyTorch  
-Install PyTorch with cuda10.  
+Install PyTorch1.1 with cuda10.
+(PyTorch1.7 with cuda11.0 is supported after updating)
+
 ```bash
 conda install pytorch=1.1 torchvision cudatoolkit=10.0 -c pytorch
 ```

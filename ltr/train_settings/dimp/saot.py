@@ -9,6 +9,8 @@ from ltr.trainers import LTRTrainer
 import ltr.data.transforms as tfm
 from ltr import MultiGPU
 import torch
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data.distributed import DistributedSampler
 
 class OPT_KPT(object):
     def __init__(self, name=None):
@@ -19,25 +21,28 @@ class OPT_KPT(object):
 
 def run(settings):
     settings.description = 'Default train settings for DiMP with ResNet50 as backbone.'
-    settings.batch_size = 10
+    settings.batch_size = 2
     settings.num_workers = 8
-    settings.multi_gpu = False
+    settings.multi_gpu = True
     settings.print_interval = 1
     settings.normalize_mean = [0.485, 0.456, 0.406]
     settings.normalize_std = [0.229, 0.224, 0.225]
-    settings.search_area_factor = 5.0
+    settings.search_area_factor = 6.0
     settings.output_sigma_factor = 1/4
     settings.target_filter_sz = 4
-    settings.feature_sz = 18
+    settings.feature_sz = 22
     settings.output_sz = settings.feature_sz * 16
-    settings.center_jitter_factor = {'train': 3, 'test': 4.5}
+    settings.center_jitter_factor = {'train': 3, 'test': 5.5}
     settings.scale_jitter_factor = {'train': 0.25, 'test': 0.5}
     settings.hinge_threshold = 0.05
     settings.zoomin_scale = 0.5
-    settings.reg_feature_size = int(settings.feature_sz * 2 * settings.zoomin_scale)
+    settings.reg_feature_size = 22
+
+    settings.frozen_backbone_layers = ['conv1', 'bn1', 'layer1', 'layer2']
 
     kp_opt = OPT_KPT()
     kp_opt.state_estiamtion_layers = ['layer2', 'layer3']
+    kp_opt.graph_size = (settings.reg_feature_size, settings.reg_feature_size)
 
     kp_opt.cls_settings = OPT_KPT(name='settings for the cls feature extractor')
     kp_opt.cls_settings.skfuse = True
@@ -62,7 +67,7 @@ def run(settings):
     kp_opt.seintegrate_settings.use_std_dev = True
     kp_opt.seintegrate_settings.use_priori_mask = True
     kp_opt.seintegrate_settings.use_priori_mask_plus = True
-    kp_opt.seintegrate_settings.priori_mask_sigma = 2.
+    kp_opt.seintegrate_settings.priori_mask_sigma = 2.0
 
     kp_opt.seintegrate_settings.learn_supress_sigma_factor = True
     kp_opt.seintegrate_settings.supress_sigma_factor = 1.50
@@ -93,18 +98,20 @@ def run(settings):
 
 
     # Train datasets
-    lasot_train = Lasot(settings.env.lasot_dir, split='train')
+    #lasot_train = Lasot(settings.env.lasot_dir, split='train')
     got10k_train = Got10k(settings.env.got10k_dir, split='vottrain')
-    trackingnet_train = TrackingNet(settings.env.trackingnet_dir, set_ids=list(range(4)))
-    coco_train = MSCOCOSeq(settings.env.coco_dir)
+    #trackingnet_train = TrackingNet(settings.env.trackingnet_dir, set_ids=list(range(4)))
+    #coco_train = MSCOCOSeq(settings.env.coco_dir)
 
     # Validation datasets
     got10k_val = Got10k(settings.env.got10k_dir, split='votval')
 
     # Data transform
-    transform_joint = tfm.Transform(tfm.ToGrayscale(probability=0.05))
+    transform_joint = tfm.Transform(tfm.ToGrayscale(probability=0.05),
+                                    tfm.RandomHorizontalFlip(probability=0.5))
 
     transform_train = tfm.Transform(tfm.ToTensorAndJitter(0.2),# jitter in terms of brightness
+                                    tfm.RandomHorizontalFlip(probability=0.5),
                                     tfm.Normalize(mean=settings.normalize_mean, std=settings.normalize_std))
 
     transform_val = tfm.Transform(tfm.ToTensor(),
@@ -118,6 +125,8 @@ def run(settings):
                                                       output_sz=settings.output_sz,
                                                       center_jitter_factor=settings.center_jitter_factor,
                                                       scale_jitter_factor=settings.scale_jitter_factor,
+                                                      crop_type='inside_major',
+                                                      max_scale_change=1.5,
                                                       zoomin_scale=settings.zoomin_scale,
                                                       mode='sequence',
                                                       proposal_params=proposal_params,
@@ -129,6 +138,8 @@ def run(settings):
                                                     output_sz=settings.output_sz,
                                                     center_jitter_factor=settings.center_jitter_factor,
                                                     scale_jitter_factor=settings.scale_jitter_factor,
+                                                    crop_type='inside_major',
+                                                    max_scale_change=1.5,
                                                     zoomin_scale=settings.zoomin_scale,
                                                     mode='sequence',
                                                     proposal_params=proposal_params,
@@ -137,21 +148,24 @@ def run(settings):
                                                     joint_transform=transform_joint)
 
     # Train sampler and loader
-    dataset_train = sampler.DiMPSampler([lasot_train, got10k_train, trackingnet_train, coco_train], [0.25,1,1,1],
-                                        #[got10k_train],[1],
-                                        samples_per_epoch=26000, max_gap=30, num_test_frames=3, num_train_frames=3,
+    dataset_train = sampler.DiMPSampler(#[lasot_train, got10k_train, trackingnet_train, coco_train], [1,1,1,1],
+                                        [got10k_train,], [1,],
+                                        samples_per_epoch=40000, max_gap=200, num_test_frames=3, num_train_frames=3,
                                         processing=data_processing_train)
+    train_sampler = DistributedSampler(dataset_train) if settings.local_rank != -1 else None
+    train_shuffle = False if settings.local_rank != -1 else True
 
     loader_train = LTRLoader('train', dataset_train, training=True, batch_size=settings.batch_size, num_workers=settings.num_workers,
-                             shuffle=True, drop_last=True, stack_dim=1)
+                             shuffle=train_shuffle, drop_last=True, stack_dim=1, sampler=train_sampler)
 
     # Validation samplers and loaders
-    dataset_val = sampler.DiMPSampler([got10k_val], [1], samples_per_epoch=5000, max_gap=30,
+    dataset_val = sampler.DiMPSampler([got10k_val], [1], samples_per_epoch=10000, max_gap=200,
                                       num_test_frames=3, num_train_frames=3,
                                       processing=data_processing_val)
+    val_sampler = DistributedSampler(dataset_val) if settings.local_rank != -1 else None
 
     loader_val = LTRLoader('val', dataset_val, training=False, batch_size=settings.batch_size, num_workers=settings.num_workers,
-                           shuffle=False, drop_last=True, epoch_interval=5, stack_dim=1)
+                           drop_last=True, epoch_interval=5, stack_dim=1, sampler=val_sampler)
 
     # Create network and actor
     net = dimpnet.dimpnet50(filter_size=settings.target_filter_sz, backbone_pretrained=True, optim_iter=5,
@@ -159,11 +173,17 @@ def run(settings):
                             optim_init_step=0.9, optim_init_reg=0.1,
                             init_gauss_sigma=output_sigma * settings.feature_sz, num_dist_bins=100,
                             bin_displacement=0.1, mask_init_factor=3.0, target_mask_act='sigmoid', score_act='relu',
-                            frozen_backbone_layers='all', kp_opt=kp_opt)
+                            frozen_backbone_layers=settings.frozen_backbone_layers, kp_opt=kp_opt)
 
     # Wrap the network for multi GPU training
-    if settings.multi_gpu:
-        net = MultiGPU(net, dim=1)
+    net.cuda()
+    if settings.local_rank != -1:
+        net = DDP(net, device_ids=[settings.local_rank], find_unused_parameters=True)
+        settings.devices = torch.device("cuda:%d" % settings.local_rank)
+    else:
+        settings.devices = torch.device("cuda:0")
+    # if settings.multi_gpu:
+    #     net = MultiGPU(net, dim=1)
 
     objective = {'test_clf': ltr_losses.LBHinge(threshold=settings.hinge_threshold),
                  'box': ltr_losses.BoxRegression(stride=kp_opt.seneck_settings.state_estiamtion_stride,
@@ -174,12 +194,12 @@ def run(settings):
     actor = actors.DiMPActor(net=net, objective=objective, loss_weight=loss_weight)
 
     # Optimizer
-    optimizer = optim.Adam([{'params': actor.net.classifier.filter_initializer.parameters(), 'lr': 5e-5},
-                            {'params': actor.net.classifier.filter_optimizer.parameters(), 'lr': 5e-4},
-                            {'params': actor.net.classifier.feature_extractor.parameters(), 'lr': 5e-5},
-                            {'params': actor.net.state_estimator.parameters(), 'lr': 2e-4, 'weight_decay': 0.0001},
-                            {'params': actor.net.feature_extractor.parameters(), 'lr': 2e-5}],
-                           lr=2e-4)
+    optimizer = optim.Adam([{'params': actor.net.module.classifier.filter_initializer.parameters(), 'lr': 5e-5},
+                            {'params': actor.net.module.classifier.filter_optimizer.parameters(), 'lr': 5e-4},
+                            {'params': actor.net.module.classifier.feature_extractor.parameters(), 'lr': 5e-5},
+                            {'params': actor.net.module.state_estimator.parameters(), 'lr': 2e-4, 'weight_decay': 0.0001},
+                            {'params': actor.net.module.feature_extractor.layer3.parameters(), 'lr': 2e-5}],
+                           lr=2e-4*2)
 
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.2)
 
