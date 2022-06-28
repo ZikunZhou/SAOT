@@ -22,7 +22,7 @@ class BoxRegression(nn.Module):
         cls_target = cls_target.view(-1)
         select = torch.nonzero(cls_target==1).squeeze()
 
-        reg_predict = reg_predict.permute(0,2,3,1).contiguous().view(-1,4)
+        reg_predict = reg_predict.permute(0,1,3,4,2).contiguous().view(-1,4)
         reg_target = reg_target.permute(0,2,3,1).contiguous().view(-1, 4)
 
         reg_predict = reg_predict[select]
@@ -30,7 +30,7 @@ class BoxRegression(nn.Module):
         iou_loss = self.iou_loss_func(reg_predict, reg_target)
 
         if cls_predict is not None:
-            cls_predict = cls_predict.permute(0,2,3,1).contiguous().view(-1,2)
+            cls_predict = cls_predict.permute(0,1,3,4,2).contiguous().view(-1,2)
             cls_predict = F.log_softmax(cls_predict, dim=1)
             cls_loss = self.cls_loss_func(cls_predict, cls_target.to(torch.long))
             return iou_loss, cls_loss

@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as f
 from ltr.external.PreciseRoIPooling.pytorch.prroi_pool import PrRoIPool2D
 from ltr.external.PreciseRoIPooling.pytorch.prroi_pool import prroi_pool2d
-from mmdet.ops import RoIAlign, roi_align, roi_pool
+# from mmdet.ops import RoIAlign, roi_align, roi_pool
 
 class AdjustLayer(nn.Module):
     """pool_size_src is not given until start forward propa

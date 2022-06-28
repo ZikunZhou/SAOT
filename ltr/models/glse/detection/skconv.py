@@ -50,7 +50,7 @@ class SKConv(nn.Module):
 
     def forward(self, x):
         for i, conv in enumerate(self.convs):
-            feature = conv(x).unsqueeze_(dim=1)
+            feature = conv(x).unsqueeze(dim=1)
             if i == 0:
                 features = feature
             else:
@@ -62,7 +62,7 @@ class SKConv(nn.Module):
             feature_s = feature_s.unsqueeze(dim=0)
         feature_z = self.fc(feature_s)#batch*self.d
         for i, fc in enumerate(self.fcs):
-            vector = fc(feature_z).unsqueeze_(dim=1)
+            vector = fc(feature_z).unsqueeze(dim=1)
             if i == 0:
                 attention_vectors = vector
             else:

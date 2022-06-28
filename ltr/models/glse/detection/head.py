@@ -52,7 +52,8 @@ class BoxSE(nn.Module):
 
         if self.use_cls:
             if self.detach_cls:
-                x_cls = x.clone().detach()
+                with torch.no_grad():
+                    x_cls = x.clone()
             else:
                 x_cls = x
             for neck_layer in self.cls_neck:

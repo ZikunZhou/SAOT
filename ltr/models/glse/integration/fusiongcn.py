@@ -135,10 +135,10 @@ class FusionGCN_SSA(nn.Module):
         node_feat = torch.cat([search_feature, xcorr_map], dim=1)
 
         batch, channel, height, width = node_feat.shape
-        node_feat = node_feat.view(batch, channel, height*width).permute(0,2,1)
+        node_feat = node_feat.view(batch, channel, height*width).permute(0,2,1).contiguous()
         node_feat = self.relu(self.gc1(node_feat, adjacency_mats))
 
-        spatial_mask = self.activate_layer(self.gc2(node_feat, adjacency_mats)).permute(0,2,1)
+        spatial_mask = self.activate_layer(self.gc2(node_feat, adjacency_mats)).permute(0,2,1).contiguous()
         spatial_mask = spatial_mask.view(batch, self.gcn_out_channels, height, width)
 
         return spatial_mask
@@ -153,7 +153,7 @@ class FusionGCN_SSA(nn.Module):
         if self.use_sa_adjust_edge:
             edge_weights = edge_weights.detach()
         batch, channel, height, width = features.shape
-        flatter_features = features.permute(2,3,0,1).contiguous().view(-1, batch, channel).permute(1,2,0)
+        flatter_features = features.permute(2,3,0,1).contiguous().view(-1, batch, channel).permute(1,2,0).contiguous()
         adjacency_mats = []
         for i, coord_pair in enumerate(coords_pair):
             adjacency_mat = torch.zeros(height*width, height*width, device=features.device)
@@ -168,7 +168,7 @@ class FusionGCN_SSA(nn.Module):
                 edge = self.phi(torch.abs(first_point_feature-second_point_feature)).view(-1)
             else:
                 edge = self.phi(first_point_feature*second_point_feature).view(-1)
-            indices = coord_pair.permute(1,0).cpu().numpy().tolist()
+            indices = coord_pair.permute(1,0).contiguous().cpu().numpy().tolist()
             adjacency_mat[indices[0], indices[1]] = edge
             adjacency_mats.append(adjacency_mat)
 
@@ -222,7 +222,7 @@ class FusionGCN_SSA(nn.Module):
                 else:
                     unique_key_saliency, select_key_index = torch.topk(unique_key_saliency, self.saliency_topk, dim=-1, largest=True)
                 unique_key_index = unique_key_index[select_key_index]
-            edge_weights[i, unique_key_index] = unique_key_saliency
+            edge_weights[i, unique_key_index.to(torch.long)] = unique_key_saliency
 
             # ----------------compute key point pair index----------------------
             if len(unique_key_index) >= 2:
@@ -253,7 +253,7 @@ class FusionGCN_SSA(nn.Module):
         A_hats = As + torch.eye(As.shape[1]).unsqueeze(0).to(As.device)
         D_hats = torch.pow(A_hats.sum(2), -0.5)
         D_hats = torch.stack([torch.diag(D_hat) for D_hat in D_hats], dim=0)
-        normed_adjmat = torch.matmul(torch.matmul(A_hats, D_hats).transpose(dim0=1, dim1=2), D_hats)
+        normed_adjmat = torch.matmul(torch.matmul(A_hats, D_hats).transpose(dim0=1, dim1=2).contiguous(), D_hats)
         return normed_adjmat
 
     def gen_adj(self, A):

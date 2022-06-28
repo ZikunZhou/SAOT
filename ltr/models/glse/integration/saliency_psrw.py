@@ -49,10 +49,10 @@ class SaliencyEvaluator_PSRW(nn.Module):
         """
         batch, channel, height, width = cost_volume.shape
         if self.offsets_max is None:
-            self.offsets_max = self.offsets_dict[self.mainlobe_window_radius_max].unsqueeze(0).expand(batch*channel, -1, -1)
+            self.offsets_max = self.offsets_dict[self.mainlobe_window_radius_max].unsqueeze(0).expand(batch*channel, -1, -1).to(cost_volume.device)
 
         # -----------------------compute approaximate mean start-----------------------------
-        mainlobe_window_priori = peak_coords.unsqueeze(-2) + self.offsets_priori.unsqueeze(0).unsqueeze(0)
+        mainlobe_window_priori = peak_coords.unsqueeze(-2) + self.offsets_priori.unsqueeze(0).unsqueeze(0).to(peak_coords.device)
         mainlobe_window_priori = torch.stack([mainlobe_window_priori[...,0].clamp(min=0, max=height-1),
                             mainlobe_window_priori[...,1].clamp(min=0, max=width-1)], dim=-1)
         mainlobe_window_priori = mainlobe_window_priori.view(batch*channel, -1, 2).cpu()
@@ -61,8 +61,8 @@ class SaliencyEvaluator_PSRW(nn.Module):
         num_mainlobe_points_priori = mainlobe_window_priori.shape[1]
         batch_index_priori = torch.arange(batch*channel).unsqueeze(-1).expand(-1, num_mainlobe_points_priori)
 
-        priori_weights[batch_index_priori.numpy().tolist(), mainlobe_window_priori[...,0].numpy().tolist(), \
-                                mainlobe_window_priori[...,1].numpy().tolist()] = 0
+        priori_weights[batch_index_priori, mainlobe_window_priori[...,0], \
+                                mainlobe_window_priori[...,1]] = 0
 
         priori_weights = priori_weights.view(batch*channel, height*width)
         num_sidelobe_points_priori = priori_weights.sum(dim=-1, keepdim=True)
@@ -81,12 +81,12 @@ class SaliencyEvaluator_PSRW(nn.Module):
 
         batch_index = torch.arange(batch*channel)
         compare_results = (cost_volume <= cost_volume_mean.unsqueeze(-1))
-        compare_results[batch_index.numpy().tolist(), peak_coords_flatten[:,0].cpu().numpy().tolist(), \
-                        peak_coords_flatten[:,1].cpu().numpy().tolist()] = 0
+        compare_results[batch_index, peak_coords_flatten[:,0].cpu(), \
+                        peak_coords_flatten[:,1].cpu()] = 0
 
         compare_results_flatten = compare_results.view(batch*channel, -1)
 
-        drop_points_coord = (compare_results_flatten<=0).nonzero().cpu().permute(1,0).numpy().tolist()
+        drop_points_coord = (compare_results_flatten<=0).nonzero().cpu().permute(1,0)
         distance[drop_points_coord[0], drop_points_coord[1]] = 100
 
         mainlobe_widthes, closest_sidelobe_indices = torch.topk(distance, self.min_k, dim=-1, largest=False)
@@ -100,8 +100,8 @@ class SaliencyEvaluator_PSRW(nn.Module):
         batch_index = torch.arange(batch*channel).unsqueeze(-1).expand(-1, num_mainlobe_points)
 
         mask_weights = torch.ones(batch*channel, height, width, device=cost_volume.device)
-        mask_weights[batch_index.numpy().tolist(), mainlobe_window[...,0].numpy().tolist(), \
-                                mainlobe_window[...,1].numpy().tolist()] = 0
+        mask_weights[batch_index, mainlobe_window[...,0], \
+                                mainlobe_window[...,1]] = 0
 
         
         mask_weights = mask_weights.view(batch*channel, height*width)

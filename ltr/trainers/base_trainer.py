@@ -31,7 +31,8 @@ class BaseTrainer:
 
         self.device = getattr(settings, 'device', None)
         if self.device is None:
-            self.device = torch.device("cuda:0" if torch.cuda.is_available() and settings.use_gpu else "cpu")
+            device_id = settings.local_rank if settings.local_rank != -1 else 0
+            self.device = torch.device("cuda:%d" % device_id if torch.cuda.is_available() and settings.use_gpu else "cpu")
 
         self.actor.to(self.device)
 
@@ -43,8 +44,9 @@ class BaseTrainer:
         if self.settings.env.workspace_dir is not None:
             self.settings.env.workspace_dir = os.path.expanduser(self.settings.env.workspace_dir)
             self._checkpoint_dir = os.path.join(self.settings.env.workspace_dir, 'checkpoints')
-            if not os.path.exists(self._checkpoint_dir):
-                os.makedirs(self._checkpoint_dir)
+            if self.settings.local_rank in [-1, 0]:
+                if not os.path.exists(self._checkpoint_dir):
+                    os.makedirs(self._checkpoint_dir)
         else:
             self._checkpoint_dir = None
 
@@ -58,7 +60,7 @@ class BaseTrainer:
         """
 
         epoch = -1
-        num_tries = 10
+        num_tries = 1
         for i in range(num_tries):
             try:
                 if load_latest:
@@ -73,7 +75,8 @@ class BaseTrainer:
                         self.lr_scheduler.step()
 
                     if self._checkpoint_dir:
-                        self.save_checkpoint()
+                        if self.settings.local_rank in [-1, 0]:
+                            self.save_checkpoint()
             except:
                 print('Training crashed at epoch {}'.format(epoch))
                 if fail_safe:

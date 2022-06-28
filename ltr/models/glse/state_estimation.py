@@ -13,7 +13,10 @@ class Estimator(nn.Module):
         super(Estimator, self).__init__()
         self.mesh_y, self.mesh_x = None, None
         self.t_stride = kp_opt.seneck_settings.state_estiamtion_stride
-
+        try:
+            self.graph_size = kp_opt.graph_size
+        except AttributeError as e:
+            self.graph_size = (18, 18)
         self.neck = AdjustLayer(neck_opt=kp_opt.seneck_settings)
 
         self.integrator = Integration(neck_opt=kp_opt.seneck_settings, integrate_opt=kp_opt.seintegrate_settings)
@@ -32,7 +35,7 @@ class Estimator(nn.Module):
                                              shape=[num_images*num_sequences, 19, 19]
             graph_size (list) - (height, width) of the subsearch_window_feat
         """
-
+        print(self.graph_size)
         assert train_boxes.dim() == 3
         num_images, num_sequences = train_boxes.shape[:2]
         if isinstance(train_feats, list):
@@ -47,9 +50,9 @@ class Estimator(nn.Module):
         init_search_feats, templates, _ = self.neck(train_feat0, tmp_flag=True, roi=train_box0)
 
         searches, subsearch_windows, subsearch_rois = self.neck(test_feats, tmp_flag=False, roi=test_win,
-                                        pooled_height_src=graph_size[0], pooled_width_src=graph_size[1])
+                                        pooled_height_src=self.graph_size[0], pooled_width_src=self.graph_size[1])
 
-        modulated_search = self.integrator(templates, subsearch_windows, graph_size)
+        modulated_search = self.integrator(templates, subsearch_windows, self.graph_size)
 
         bbox_offsets, output_cls = self.detector(modulated_search)
         return bbox_offsets, output_cls

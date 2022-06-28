@@ -127,7 +127,7 @@ class Integration(nn.Module):
     def find2Dpeak(self, xcorr_map):
         batch, channel, height, width = xcorr_map.shape
         max_indices = torch.argmax(xcorr_map.view(batch, channel, -1), dim=2)
-        y_coordinates, x_coordinates = max_indices/width, torch.remainder(max_indices, width)
+        y_coordinates, x_coordinates = max_indices//width, torch.remainder(max_indices, width)
         peak_coords = torch.stack([y_coordinates, x_coordinates], dim=-1)
         return peak_coords
 

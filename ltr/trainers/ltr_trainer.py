@@ -5,6 +5,7 @@ from ltr.admin.stats import AverageMeter, StatValue
 from ltr.admin.tensorboard import TensorboardWriter
 import torch
 import time
+from torch.utils.data.distributed import DistributedSampler
 
 
 class LTRTrainer(BaseTrainer):
@@ -26,10 +27,12 @@ class LTRTrainer(BaseTrainer):
         self.stats = OrderedDict({loader.name: None for loader in self.loaders})
 
         # Initialize tensorboard
-        tensorboard_writer_dir = os.path.join(self.settings.env.tensorboard_dir, self.settings.project_path)
-        self.tensorboard_writer = TensorboardWriter(tensorboard_writer_dir, [l.name for l in loaders])
+        if settings.local_rank in [-1, 0]:
+            tensorboard_writer_dir = os.path.join(self.settings.env.tensorboard_dir, self.settings.project_path)
+            self.tensorboard_writer = TensorboardWriter(tensorboard_writer_dir, [l.name for l in loaders])
 
         self.move_data_to_gpu = getattr(settings, 'move_data_to_gpu', True)
+        self.settings = settings
 
     def _set_default_settings(self):
         # Dict of all default values
@@ -77,10 +80,13 @@ class LTRTrainer(BaseTrainer):
         """Do one epoch for each loader."""
         for loader in self.loaders:
             if self.epoch % loader.epoch_interval == 0:
+                if isinstance(loader.sampler, DistributedSampler):
+                    loader.sampler.set_epoch(self.epoch)
                 self.cycle_dataset(loader)
 
         self._stats_new_epoch()
-        self._write_tensorboard()
+        if self.settings.local_rank in [-1, 0]:
+            self._write_tensorboard()
 
     def _init_timing(self):
         self.num_frames = 0

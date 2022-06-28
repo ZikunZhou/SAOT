@@ -2,6 +2,7 @@ import random
 import torch.utils.data
 from pytracking import TensorDict
 
+
 def no_processing(data):
     return data
 
@@ -91,81 +92,89 @@ class TrackingSampler(torch.utils.data.Dataset):
             TensorDict - dict containing all the data blocks
         """
 
-        # Select a dataset
-        dataset = random.choices(self.datasets, self.p_datasets)[0]
-        is_video_dataset = dataset.is_video_sequence()
+        valid =False
+        while not valid:    # sample until get valid data
+            # Select a dataset
+            dataset = random.choices(self.datasets, self.p_datasets)[0]
+            is_video_dataset = dataset.is_video_sequence()
 
-        # Sample a sequence with enough visible frames
-        enough_visible_frames = False
-        while not enough_visible_frames:
-            # Sample a sequence
-            seq_id = random.randint(0, dataset.get_num_sequences() - 1)
+            # Sample a sequence with enough visible frames
+            enough_visible_frames = False
+            while not enough_visible_frames:
+                # Sample a sequence
+                seq_id = random.randint(0, dataset.get_num_sequences() - 1)
 
-            # Sample frames
-            seq_info_dict = dataset.get_sequence_info(seq_id)
-            visible = seq_info_dict['visible']
+                # Sample frames
+                seq_info_dict = dataset.get_sequence_info(seq_id)
+                visible = seq_info_dict['visible']
 
-            enough_visible_frames = visible.type(torch.int64).sum().item() > 2 * (
-                    self.num_test_frames + self.num_train_frames) and len(visible) >= 20
+                enough_visible_frames = visible.type(torch.int64).sum().item() > 2 * (
+                        self.num_test_frames + self.num_train_frames) and len(visible) >= 20
 
-            enough_visible_frames = enough_visible_frames or not is_video_dataset
+                enough_visible_frames = enough_visible_frames or not is_video_dataset
 
-        if is_video_dataset:
-            train_frame_ids = None
-            test_frame_ids = None
-            gap_increase = 0
+            if is_video_dataset:
+                train_frame_ids = None
+                test_frame_ids = None
+                gap_increase = 0
 
-            if self.frame_sample_mode == 'interval':
-                # Sample frame numbers within interval defined by the first frame
-                while test_frame_ids is None:
-                    base_frame_id = self._sample_visible_ids(visible, num_ids=1)
-                    extra_train_frame_ids = self._sample_visible_ids(visible, num_ids=self.num_train_frames - 1,
-                                                                     min_id=base_frame_id[
-                                                                                0] - self.max_gap - gap_increase,
-                                                                     max_id=base_frame_id[
-                                                                                0] + self.max_gap + gap_increase)
-                    if extra_train_frame_ids is None:
+                if self.frame_sample_mode == 'interval':
+                    # Sample frame numbers within interval defined by the first frame
+                    while test_frame_ids is None:
+                        base_frame_id = self._sample_visible_ids(visible, num_ids=1)
+                        extra_train_frame_ids = self._sample_visible_ids(visible, num_ids=self.num_train_frames - 1,
+                                                                        min_id=base_frame_id[
+                                                                                    0] - self.max_gap - gap_increase,
+                                                                        max_id=base_frame_id[
+                                                                                    0] + self.max_gap + gap_increase)
+                        if extra_train_frame_ids is None:
+                            gap_increase += 5
+                            continue
+                        train_frame_ids = base_frame_id + extra_train_frame_ids
+                        test_frame_ids = self._sample_visible_ids(visible, num_ids=self.num_test_frames,
+                                                                min_id=train_frame_ids[0] - self.max_gap - gap_increase,
+                                                                max_id=train_frame_ids[0] + self.max_gap + gap_increase)
+                        gap_increase += 5  # Increase gap until a frame is found
+
+                elif self.frame_sample_mode == 'causal':
+                    # Sample test and train frames in a causal manner, i.e. test_frame_ids > train_frame_ids
+                    while test_frame_ids is None:
+                        base_frame_id = self._sample_visible_ids(visible, num_ids=1, min_id=self.num_train_frames - 1,
+                                                                max_id=len(visible) - self.num_test_frames)
+                        prev_frame_ids = self._sample_visible_ids(visible, num_ids=self.num_train_frames - 1,
+                                                                min_id=base_frame_id[0] - self.max_gap - gap_increase,
+                                                                max_id=base_frame_id[0])
+                        if prev_frame_ids is None:
+                            gap_increase += 5
+                            continue
+                        train_frame_ids = base_frame_id + prev_frame_ids
+                        test_frame_ids = self._sample_visible_ids(visible, min_id=train_frame_ids[0] + 1,
+                                                                max_id=train_frame_ids[0] + self.max_gap + gap_increase,
+                                                                num_ids=self.num_test_frames)
+                        # Increase gap until a frame is found
                         gap_increase += 5
-                        continue
-                    train_frame_ids = base_frame_id + extra_train_frame_ids
-                    test_frame_ids = self._sample_visible_ids(visible, num_ids=self.num_test_frames,
-                                                              min_id=train_frame_ids[0] - self.max_gap - gap_increase,
-                                                              max_id=train_frame_ids[0] + self.max_gap + gap_increase)
-                    gap_increase += 5  # Increase gap until a frame is found
+            else:
+                # In case of image dataset, just repeat the image to generate synthetic video
+                train_frame_ids = [1] * self.num_train_frames
+                test_frame_ids = [1] * self.num_test_frames
 
-            elif self.frame_sample_mode == 'causal':
-                # Sample test and train frames in a causal manner, i.e. test_frame_ids > train_frame_ids
-                while test_frame_ids is None:
-                    base_frame_id = self._sample_visible_ids(visible, num_ids=1, min_id=self.num_train_frames - 1,
-                                                             max_id=len(visible) - self.num_test_frames)
-                    prev_frame_ids = self._sample_visible_ids(visible, num_ids=self.num_train_frames - 1,
-                                                              min_id=base_frame_id[0] - self.max_gap - gap_increase,
-                                                              max_id=base_frame_id[0])
-                    if prev_frame_ids is None:
-                        gap_increase += 5
-                        continue
-                    train_frame_ids = base_frame_id + prev_frame_ids
-                    test_frame_ids = self._sample_visible_ids(visible, min_id=train_frame_ids[0] + 1,
-                                                              max_id=train_frame_ids[0] + self.max_gap + gap_increase,
-                                                              num_ids=self.num_test_frames)
-                    # Increase gap until a frame is found
-                    gap_increase += 5
-        else:
-            # In case of image dataset, just repeat the image to generate synthetic video
-            train_frame_ids = [1] * self.num_train_frames
-            test_frame_ids = [1] * self.num_test_frames
+            try:
+                train_frames, train_anno, meta_obj_train = dataset.get_frames(seq_id, train_frame_ids, seq_info_dict)
+                test_frames, test_anno, meta_obj_test = dataset.get_frames(seq_id, test_frame_ids, seq_info_dict)
 
-        train_frames, train_anno, meta_obj_train = dataset.get_frames(seq_id, train_frame_ids, seq_info_dict)
-        test_frames, test_anno, meta_obj_test = dataset.get_frames(seq_id, test_frame_ids, seq_info_dict)
+                data = TensorDict({'train_images': train_frames,
+                                'train_anno': train_anno['bbox'],
+                                'test_images': test_frames,
+                                'test_anno': test_anno['bbox'],
+                                'dataset': dataset.get_name(),
+                                'test_class': meta_obj_test.get('object_class_name')})
 
-        data = TensorDict({'train_images': train_frames,
-                           'train_anno': train_anno['bbox'],
-                           'test_images': test_frames,
-                           'test_anno': test_anno['bbox'],
-                           'dataset': dataset.get_name(),
-                           'test_class': meta_obj_test.get('object_class_name')})
-
-        return self.processing(data)
+                data = self.processing(data)
+                valid = True
+            except:
+                valid = False
+            
+        return data
 
 
 class DiMPSampler(TrackingSampler):

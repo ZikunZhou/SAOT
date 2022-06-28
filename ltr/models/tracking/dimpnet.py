@@ -69,6 +69,10 @@ class DiMPnet(nn.Module):
         bboxes, cls = self.state_estimator(train_feat_se, test_feat_se,
                             train_bb, test_win, test_bb_inwin, target_scores)
 
+        bboxes = bboxes.reshape(*test_imgs.shape[:2], *bboxes.shape[1:])
+        if cls is not None:
+            cls = cls.reshape(*test_imgs.shape[:2], *cls.shape[1:])
+
         return target_scores, bboxes, cls
 
     def adjust_skfeat(self, train_skfeat, test_skfeat, channel_importance=None):
