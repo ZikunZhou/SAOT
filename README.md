@@ -1,4 +1,4 @@
-# SAOT
+## SAOT
 
 The official implementation of the paper [**Saliency-Associated Object Tracking**](https://arxiv.org/abs/2108.03637) (accepted by ICCV2021).
 
@@ -75,7 +75,12 @@ Please cite the following publication, if you find the code helpful in your rese
 }
 ```
 
-## Acknowledgments
+### Acknowledgments
 Thanks for the [PyTracking](https://github.com/visionml/pytracking) and [Pysot](https://github.com/STVIR/pysot.git) libraries, which helps us to quickly implement our ideas. 
 
 Thanks for Kaige Mao for the helps about the updates.
+
+### Contact
+```
+Please feel free to contact me (Email: zikunzhou@163.com).
+```
