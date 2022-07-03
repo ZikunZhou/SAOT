@@ -81,6 +81,5 @@ Thanks for the [PyTracking](https://github.com/visionml/pytracking) and [Pysot](
 Thanks for Kaige Mao for the helps about the updates.
 
 ### Contact
-```
 Please feel free to contact me (Email: zikunzhou@163.com).
-```
+
