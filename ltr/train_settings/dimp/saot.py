@@ -21,7 +21,7 @@ class OPT_KPT(object):
 
 def run(settings):
     settings.description = 'Default train settings for DiMP with ResNet50 as backbone.'
-    settings.batch_size = 2
+    settings.batch_size = 10
     settings.num_workers = 8
     settings.multi_gpu = True
     settings.print_interval = 1
