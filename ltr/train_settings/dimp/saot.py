@@ -98,10 +98,10 @@ def run(settings):
 
 
     # Train datasets
-    #lasot_train = Lasot(settings.env.lasot_dir, split='train')
+    lasot_train = Lasot(settings.env.lasot_dir, split='train')
     got10k_train = Got10k(settings.env.got10k_dir, split='vottrain')
-    #trackingnet_train = TrackingNet(settings.env.trackingnet_dir, set_ids=list(range(4)))
-    #coco_train = MSCOCOSeq(settings.env.coco_dir)
+    trackingnet_train = TrackingNet(settings.env.trackingnet_dir, set_ids=list(range(4)))
+    coco_train = MSCOCOSeq(settings.env.coco_dir)
 
     # Validation datasets
     got10k_val = Got10k(settings.env.got10k_dir, split='votval')
@@ -148,8 +148,7 @@ def run(settings):
                                                     joint_transform=transform_joint)
 
     # Train sampler and loader
-    dataset_train = sampler.DiMPSampler(#[lasot_train, got10k_train, trackingnet_train, coco_train], [1,1,1,1],
-                                        [got10k_train,], [1,],
+    dataset_train = sampler.DiMPSampler([lasot_train, got10k_train, trackingnet_train, coco_train], [1,1,1,1],
                                         samples_per_epoch=40000, max_gap=200, num_test_frames=3, num_train_frames=3,
                                         processing=data_processing_train)
     train_sampler = DistributedSampler(dataset_train) if settings.local_rank != -1 else None

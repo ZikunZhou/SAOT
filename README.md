@@ -12,7 +12,7 @@ Support DDP.
 
 Update the training settings for better performance. 
 
-Training our model with the new settings using a single GPU, the performance on LaSOT reaches 0.631 (AUC).
+Training and testing our model with the new settings using a single GPU, the performance on LaSOT reaches 0.631 (AUC).
 
 ### Performance reported in the paper
 | Dataset | LaSOT (AUC)| GOT-10K (AO)| OTB2015 (AUC)| VOT2018 (EAO) |
